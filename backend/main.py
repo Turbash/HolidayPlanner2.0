@@ -30,7 +30,7 @@ async def read_root():
     return {"message": "Welcome to the Holiday Planner API"}
 
 @app.post("/plan-holiday")
-async def plan_holiday(destination: Annotated[str, Body()], budget: Annotated[int, Body()], people: Annotated[int, Body()], days: Annotated[int, Body()], group_type: Annotated[GroupType, Body()]):
+async def plan_holiday(destination: Annotated[str, Body()], budget: Annotated[float, Body()], people: Annotated[int, Body()], days: Annotated[int, Body()], group_type: Annotated[GroupType, Body()]):
     date=datetime.now().strftime("%Y-%m-%d")
     prompt_plan_template = f"""
     You are a travel assistant. Generate a detailed {days}-day travel plan for {people} people ({group_type}) visiting {destination} with a total budget of {budget} dollars, starting on {date}.
@@ -54,7 +54,7 @@ async def plan_holiday(destination: Annotated[str, Body()], budget: Annotated[in
     return result
 
 @app.post("/suggest-destinations")
-async def suggest_destinations(location: Annotated[str, Body()], budget: Annotated[int, Body()], people: Annotated[int, Body()], days: Annotated[int, Body()],group_type: Annotated[GroupType, Body()]):
+async def suggest_destinations(location: Annotated[str, Body()], budget: Annotated[float, Body()], people: Annotated[int, Body()], days: Annotated[int, Body()],group_type: Annotated[GroupType, Body()]):
     date=datetime.now().strftime("%Y-%m-%d")
     prompt_suggest_template = f"""
     You are a travel assistant. Based on the user's location ({location}), budget ({budget} dollars), number of people ({people}), group type ({group_type}), number of days ({days}), and starting date ({date}), suggest the best travel destination(s) and generate a detailed travel plan.
