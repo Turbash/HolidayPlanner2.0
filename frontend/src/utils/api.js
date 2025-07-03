@@ -2,19 +2,94 @@ import axios from 'axios';
 
 const BACKEND_URL = 'http://localhost:8000';
 
-// Simple API call to suggest destinations
-export const fetchSuggestData = async (location, budget, people, days, groupType) => {
+// Create a configured axios instance
+const apiClient = axios.create({
+  baseURL: BACKEND_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: false // Important - must be false for wildcard CORS origins
+});
+
+// Add request interceptor to set auth token on each request
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;  // Setting "Bearer {token}"
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Add response interceptor for debugging
+apiClient.interceptors.response.use(
+  response => response,
+  error => {
+    console.error('API Error:', error.message);
+    if (error.response) {
+      console.error('Status:', error.response.status);
+      console.error('Data:', error.response.data);
+      console.error('Headers:', error.response.headers);
+    } else if (error.request) {
+      console.error('Request was made but no response received');
+    }
+    return Promise.reject(error);
+  }
+);
+
+// Updated weather API function
+export const fetchWeatherData = async (city, tripDays = 5) => {
   try {
-    // Make the API call to backend
-    const response = await axios.post(`${BACKEND_URL}/suggest-destinations`, {
-      location,
-      budget,
-      people,
-      days,
-      group_type: groupType
+    console.log(`Fetching weather for ${city} for ${tripDays} days`);
+    const response = await apiClient.get(`/weather/${encodeURIComponent(city)}`, {
+      params: { days: tripDays }
     });
     
-    // Save the data to localStorage
+    if (response.data && response.data.list) {
+      return response.data.list.map(item => {
+        const date = new Date(item.dt * 1000);
+        return {
+          day: date.toLocaleDateString('en-US', { weekday: 'short' }),
+          date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          temp: Math.round(item.main.temp),
+          tempMin: Math.round(item.main.temp_min),
+          tempMax: Math.round(item.main.temp_max),
+          humidity: item.main.humidity,
+          description: item.weather[0].description,
+          icon: `https://openweathermap.org/img/wn/${item.weather[0].icon}@2x.png`
+        };
+      });
+    }
+    
+    if (response.data.error) {
+      throw new Error(response.data.error);
+    }
+    
+    throw new Error('Invalid weather data format');
+  } catch (error) {
+    console.error('Error fetching weather:', error);
+    return { error: "Could not load weather data" };
+  }
+};
+
+// Update the fetchSuggestData function
+export const fetchSuggestData = async (location, budget, people, days, groupType) => {
+  try {
+    console.log(`Sending suggestion request with params:`, {
+      location, budget, people, days, group_type: groupType
+    });
+    
+    // Make the API call to backend using apiClient
+    const response = await apiClient.post('/api/suggestions', {
+      location,
+      budget: parseFloat(budget),
+      people: parseInt(people),
+      days: parseInt(days),
+      group_type: groupType
+    });
+
     localStorage.setItem('destinationSuggestions', JSON.stringify({
       location,
       budget,
@@ -32,20 +107,23 @@ export const fetchSuggestData = async (location, budget, people, days, groupType
   }
 };
 
-// Simple API call to plan a holiday
+// Update the fetchPlanData function
 export const fetchPlanData = async (destination, budget, people, days, groupType) => {
   try {
-    // Make the API call to backend
-    const response = await axios.post(`${BACKEND_URL}/plan-holiday`, {
-      destination,
-      budget,
-      people,
-      days,
-      group_type: groupType
+    console.log(`Sending plan request with params:`, {
+      destination, budget, people, days, group_type: groupType
     });
     
-    // Save the data to localStorage
-    const data = {
+    // Make the API call to backend using apiClient
+    const response = await apiClient.post('/api/plans', {
+      destination,
+      budget: parseFloat(budget),
+      people: parseInt(people),
+      days: parseInt(days),
+      group_type: groupType
+    });
+
+      const data = {
       formParams: { destination, budget, people, days, groupType },
       planData: response.data
     };
@@ -55,7 +133,22 @@ export const fetchPlanData = async (destination, budget, people, days, groupType
     // Return the data
     return response.data;
   } catch (error) {
-    console.error('Error fetching plan data:', error);
+    console.error('Error fetching plan data:', error, error.response);
     return { error: "Failed to generate holiday plan" };
   }
 };
+
+// Add debug function to test connectivity
+export const testApiConnection = async () => {
+  try {
+    const response = await apiClient.get('/debug/ping');
+    console.log('API connection successful:', response.data);
+    return true;
+  } catch (error) {
+    console.error('API connection failed:', error);
+    return false;
+  }
+};
+
+// Export apiClient for use in other components
+export { apiClient };

@@ -1,18 +1,44 @@
 import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 import SummaryTable from "./SummaryTable";
 import LoadingState from "./shared/LoadingState";
 import ErrorState from "./shared/ErrorState";
 import ResultLayout from "./shared/ResultLayout";
 import ResultSection from "./shared/ResultSection";
 import ListItems from "./shared/ListItems";
+import WeatherDisplay from "./shared/WeatherDisplay";
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+// Axios interceptor for global 401 handling
+axios.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response && error.response.status === 401) {
+      localStorage.removeItem('auth_token');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
 
 const PlanResultPage = () => {
   const [planData, setPlanData] = useState(null);
   const [formParams, setFormParams] = useState({});
+  const [weatherData, setWeatherData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const navigate = useNavigate();
+
   useEffect(() => {
+    // Redirect to login if not authenticated
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
     try {
       // Simple loading from localStorage
       const savedData = localStorage.getItem('holidayPlan');
@@ -34,13 +60,46 @@ const PlanResultPage = () => {
       }
       
       setFormParams(parsedData.formParams || {});
+      setWeatherData(parsedData.weather || null);
       setLoading(false);
     } catch (err) {
       console.error("Error loading plan data:", err);
       setError("Failed to load plan data. Please try again.");
       setLoading(false);
     }
-  }, []);
+  }, [navigate]);
+
+  // Function to save the trip
+  const handleSaveTrip = async () => {
+    try {
+      // Check if we're logged in
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        navigate('/login', { state: { from: '/plan/result' } });
+        return;
+      }
+
+      // Set authorization header
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      // Make API call to save the trip
+      await axios.post(`${BACKEND_URL}/api/plans`, {
+        destination: formParams.destination,
+        budget: parseFloat(formParams.budget),
+        people: parseInt(formParams.people),
+        days: parseInt(formParams.days),
+        group_type: formParams.groupType
+      });
+      
+      setSaveSuccess(true);
+      
+      // Hide success message after 3 seconds
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      console.error('Error saving trip:', err);
+      setError('Failed to save the trip. Please try again.');
+    }
+  };
 
   if (loading) {
     return <LoadingState message="Loading your holiday plan..." />;
@@ -73,7 +132,37 @@ const PlanResultPage = () => {
       summaryComponent={summaryComponent}
       backButtonLink="/plan"
       backButtonText="Create Another Plan"
+      extraButtons={
+        <div className="flex space-x-3">
+          <Link 
+            to="/dashboard" 
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+          >
+            Dashboard
+          </Link>
+          <button
+            onClick={handleSaveTrip}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+          >
+            Save Trip
+          </button>
+        </div>
+      }
     >
+      {saveSuccess && (
+        <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+          Trip saved successfully!
+        </div>
+      )}
+      
+      {/* Weather Display - Pass the trip days */}
+      <WeatherDisplay 
+        weatherData={weatherData} 
+        location={formParams.destination} 
+        color="sky"
+        tripDays={parseInt(formParams.days) || 5}
+      />
+      
       {/* Budget Breakdown Section */}
       {planData.budget_breakdown && (
         <ResultSection title="Budget Breakdown" color="blue">
@@ -170,4 +259,4 @@ const PlanResultPage = () => {
   );
 };
 
-export default PlanResultPage
+export default PlanResultPage;

@@ -1,15 +1,23 @@
 import React, { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 import SummaryTable from "./SummaryTable";
 import LoadingState from "./shared/LoadingState";
 import ErrorState from "./shared/ErrorState";
 import ResultLayout from "./shared/ResultLayout";
 import ResultSection from "./shared/ResultSection";
 import ListItems from "./shared/ListItems";
+import WeatherDisplay from "./shared/WeatherDisplay";
+
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 const SuggestResultPage = () => {
   const [data, setData] = useState(null);
+  const [weatherData, setWeatherData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const navigate = useNavigate();
   
   useEffect(() => {
     try {
@@ -31,6 +39,7 @@ const SuggestResultPage = () => {
       }
       
       setData(parsedData);
+      setWeatherData(parsedData.weather || null);
       setLoading(false);
     } catch (err) {
       console.error("Error loading destination suggestions:", err);
@@ -38,6 +47,38 @@ const SuggestResultPage = () => {
       setLoading(false);
     }
   }, []);
+
+  // Function to save the trip
+  const handleSaveTrip = async () => {
+    try {
+      // Check if we're logged in
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        navigate('/login', { state: { from: '/suggest/result' } });
+        return;
+      }
+
+      // Set authorization header
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      
+      // Make API call to save the trip
+      await axios.post(`${BACKEND_URL}/api/suggestions`, {
+        location: formParams.location,
+        budget: parseFloat(formParams.budget),
+        people: parseInt(formParams.people),
+        days: parseInt(formParams.days),
+        group_type: formParams.groupType
+      });
+      
+      setSaveSuccess(true);
+      
+      // Hide success message after 3 seconds
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      console.error('Error saving suggestions:', err);
+      setError('Failed to save the suggestions. Please try again.');
+    }
+  };
 
   if (loading) {
     return <LoadingState message="Loading your destination suggestions..." />;
@@ -72,13 +113,46 @@ const SuggestResultPage = () => {
 
   const summaryComponent = <SummaryTable summaryRows={summaryRows} title="Trip Details" />;
 
+  // Get the top destination for weather
+  const topDestination = data?.suggestions?.suggested_destinations?.[0]?.destination || "destination";
+
   return (
     <ResultLayout
       title="Your Travel Suggestions"
       summaryComponent={summaryComponent}
       backButtonLink="/suggest"
       backButtonText="Search for More Destinations"
+      extraButtons={
+        <div className="flex space-x-3">
+          <Link 
+            to="/dashboard" 
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+          >
+            Dashboard
+          </Link>
+          <button
+            onClick={handleSaveTrip}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+          >
+            Save Suggestions
+          </button>
+        </div>
+      }
     >
+      {saveSuccess && (
+        <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+          Suggestions saved successfully!
+        </div>
+      )}
+      
+      {/* Weather Display - Pass the trip days */}
+      <WeatherDisplay 
+        weatherData={weatherData} 
+        location={topDestination} 
+        color="sky"
+        tripDays={parseInt(formParams.days) || 5}
+      />
+      
       {/* Suggested Destinations */}
       <ResultSection 
         title="Suggested Destinations" 

@@ -1,4 +1,13 @@
-fastapi[standard]
+fastapi
 uvicorn
-transformers
+python-dotenv
 huggingface-hub
+pydantic
+pydantic[email]
+requests
+pymongo
+mongoengine
+python-jose
+passlib
+python-multipart
+bcrypt
