@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import FormInput from "./shared/FormInput";
 import axios from 'axios';
+import BackToHomeLink from "./shared/BackToHomeLink";
 
 const BACKEND_URL = 'http://localhost:8000';
 
@@ -97,6 +98,7 @@ const SignupPage = () => {
 
   return (
     <section className="w-full min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-teal-100 via-sky-100 to-green-100">
+      <BackToHomeLink />
       <form
         onSubmit={handleSubmit}
         className="bg-white/80 rounded-2xl shadow-xl px-8 py-10 w-full max-w-md flex flex-col gap-6 border border-teal-100"

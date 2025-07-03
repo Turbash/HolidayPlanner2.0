@@ -46,20 +46,22 @@ const PlanHolidayForm = () => {
   };
 
   return (
-    <TravelForm
-      title="Plan a Holiday"
-      formValues={formValues}
-      handleChange={handleChange}
-      handleSubmit={handleSubmit}
-      loading={loading}
-      error={error}
-      alternateLink="/suggest"
-      alternateText="Get Suggestions"
-      alternatePrompt="Not sure of your destination?"
-      submitButtonText="Generate Plan"
-      loadingText="Generating Plan..."
-      locationLabel="Destination"
-    />
+    <>
+      <TravelForm
+        title="Plan a Holiday"
+        formValues={formValues}
+        handleChange={handleChange}
+        handleSubmit={handleSubmit}
+        loading={loading}
+        error={error}
+        alternateLink="/suggest"
+        alternateText="Get Suggestions"
+        alternatePrompt="Not sure of your destination?"
+        submitButtonText="Generate Plan"
+        loadingText="Generating Plan..."
+        locationLabel="Destination"
+      />
+    </>
   );
 };
 

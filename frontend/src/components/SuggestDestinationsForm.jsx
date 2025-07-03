@@ -46,20 +46,22 @@ const SuggestDestinationsForm = () => {
   }
 
   return (
-    <TravelForm
-      title="Suggest Destinations"
-      formValues={formValues}
-      handleChange={handleChange}
-      handleSubmit={handleSubmit}
-      loading={loading}
-      error={error}
-      alternateLink="/plan"
-      alternateText="Plan Holiday"
-      alternatePrompt="Have a particular destination in mind?"
-      submitButtonText="Suggest Destinations"
-      loadingText="Finding Suggestions..."
-      locationLabel="Your Location"
-    />
+    <>
+      <TravelForm
+        title="Suggest Destinations"
+        formValues={formValues}
+        handleChange={handleChange}
+        handleSubmit={handleSubmit}
+        loading={loading}
+        error={error}
+        alternateLink="/plan"
+        alternateText="Plan Holiday"
+        alternatePrompt="Have a particular destination in mind?"
+        submitButtonText="Suggest Destinations"
+        loadingText="Finding Suggestions..."
+        locationLabel="Your Location"
+      />
+    </>
   )
 }
 

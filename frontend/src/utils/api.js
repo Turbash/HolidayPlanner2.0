@@ -90,17 +90,37 @@ export const fetchSuggestData = async (location, budget, people, days, groupType
       group_type: groupType
     });
 
+    // Ensure the data is parsed and matches the expected structure
+    let data = response.data;
+    if (typeof data === "string") {
+      data = JSON.parse(data);
+    }
+
+    // If the backend returns {suggestions: "...json..."} or just the object, handle both
+    if (data && typeof data.suggestions === "string") {
+      data = JSON.parse(data.suggestions);
+    } else if (data && data.suggestions) {
+      data = data.suggestions;
+    }
+
+    // Ensure all required fields exist (fill with defaults if missing)
+    data.suggested_destinations = data.suggested_destinations || [];
+    data.itinerary_for_top_choice = data.itinerary_for_top_choice || [];
+    data.local_customs = data.local_customs || [];
+    data.packing_tips = data.packing_tips || [];
+    data.budget_considerations = data.budget_considerations || [];
+
+    // Save the data to localStorage in the correct format
     localStorage.setItem('destinationSuggestions', JSON.stringify({
       location,
       budget,
-      days, 
+      days,
       people,
       groupType,
-      suggestions: response.data
+      suggestions: data
     }));
-    
-    // Return the data
-    return response.data;
+
+    return data;
   } catch (error) {
     console.error('Error fetching suggestion data:', error);
     return { error: "Failed to get destination suggestions" };
@@ -123,15 +143,34 @@ export const fetchPlanData = async (destination, budget, people, days, groupType
       group_type: groupType
     });
 
-      const data = {
+    // Ensure the data is parsed and matches the expected structure
+    let data = response.data;
+    if (typeof data === "string") {
+      data = JSON.parse(data);
+    }
+
+    // If the backend returns {plan: "...json..."} or just the object, handle both
+    if (data && typeof data.plan === "string") {
+      data = JSON.parse(data.plan);
+    } else if (data && data.plan) {
+      data = data.plan;
+    }
+
+    // Ensure all required fields exist (fill with defaults if missing)
+    data.itinerary = data.itinerary || [];
+    data.accommodation_suggestions = data.accommodation_suggestions || [];
+    data.local_customs = data.local_customs || [];
+    data.packing_tips = data.packing_tips || [];
+    data.budget_breakdown = data.budget_breakdown || {};
+
+    // Save the data to localStorage in the correct format
+    const localData = {
       formParams: { destination, budget, people, days, groupType },
-      planData: response.data
+      planData: data
     };
-    
-    localStorage.setItem('holidayPlan', JSON.stringify(data));
-    
-    // Return the data
-    return response.data;
+    localStorage.setItem('holidayPlan', JSON.stringify(localData));
+
+    return data;
   } catch (error) {
     console.error('Error fetching plan data:', error, error.response);
     return { error: "Failed to generate holiday plan" };
