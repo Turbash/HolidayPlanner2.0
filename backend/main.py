@@ -1,14 +1,16 @@
 from fastapi import FastAPI, Body, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from typing import Annotated, List, Dict, Any
+from typing import Annotated, List
 from dotenv import load_dotenv
 from huggingface_hub import InferenceClient
 import os
 import json
+import re
+import random
+import requests
 from enum import Enum
 from datetime import datetime, timedelta
 from fastapi.middleware.cors import CORSMiddleware
-import requests
 import logging
 
 from database import (
@@ -25,7 +27,6 @@ from auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES
 )
 
-# Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -34,11 +35,10 @@ HF_API_TOKEN = os.getenv("HF_API_TOKEN")
 MODEL_ID = os.getenv("MODEL_ID")
 app = FastAPI()
 
-# Update CORS middleware configuration to be more permissive
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins in development
-    allow_credentials=False,  # Set to False for wildcard origins
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -49,30 +49,22 @@ class GroupType(str,Enum):
     family="family"
     solo="solo"
 
-
 client = InferenceClient(model=MODEL_ID, token=HF_API_TOKEN)
 def ai_huggingface(prompt):
     messages = [{"role": "user", "content": prompt}]
-    response =client.chat.completions.create(
-        messages)
-        
+    response =client.chat.completions.create(messages)
     return response.choices[0].message.content
 
-# Public routes
 @app.get("/")
 async def read_root():
     return {"message": "Welcome to the Holiday Planner API"}
 
 @app.get("/weather/{city}")
 async def get_weather(city: str, days: int = 5):
-    """Get weather data for a city"""
     try:
         api_key = os.getenv("OPENWEATHERMAP_API_KEY")
         if not api_key:
-            # Generate sample weather data for the requested number of days
             weather_data = {"list": []}
-            
-            # Weather conditions to cycle through
             conditions = [
                 {"description": "clear sky", "icon": "01d"},
                 {"description": "few clouds", "icon": "02d"},
@@ -84,19 +76,11 @@ async def get_weather(city: str, days: int = 5):
                 {"description": "snow", "icon": "13d"},
                 {"description": "mist", "icon": "50d"}
             ]
-            
-            base_temp = random.randint(15, 25)  # Base temperature between 15-25°C
-            
+            base_temp = random.randint(15, 25)
             for day in range(days):
-                # Create a date for each day
                 date = datetime.now() + timedelta(days=day)
-                
-                # Randomize temperature a bit each day
                 daily_temp = base_temp + random.randint(-3, 3)
-                
-                # Pick a weather condition
                 condition = random.choice(conditions)
-                
                 weather_data["list"].append({
                     "dt": int(date.timestamp()),
                     "main": {
@@ -112,21 +96,16 @@ async def get_weather(city: str, days: int = 5):
                         }
                     ]
                 })
-            
             return weather_data
-        
-        # Try to use the 16-day forecast API (requires paid subscription)
         response = requests.get(
             "https://api.openweathermap.org/data/2.5/forecast/daily",
             params={
                 "q": city,
                 "units": "metric",
-                "cnt": days,  # Get data for the specified number of days
+                "cnt": days,
                 "appid": api_key
             }
         )
-        
-        # If the API call fails (e.g., free tier doesn't have daily forecast), use the 5-day forecast
         if response.status_code != 200:
             response = requests.get(
                 "https://api.openweathermap.org/data/2.5/forecast",
@@ -136,55 +115,38 @@ async def get_weather(city: str, days: int = 5):
                     "appid": api_key
                 }
             )
-            
-            # Process the 3-hour forecast data to create a daily forecast
             if response.status_code == 200:
                 data = response.json()
-                
-                # Get unique days from the forecast
                 daily_forecasts = {}
                 for item in data["list"]:
-                    # Convert timestamp to date string
                     date = datetime.fromtimestamp(item["dt"]).strftime("%Y-%m-%d")
-                    # Only take the first forecast of each day (usually morning)
                     daily_forecasts[date] = item
-                
-                # Transform to daily data
                 daily_data = {
                     "list": list(daily_forecasts.values())
                 }
-                
                 return daily_data
     except Exception as e:
         return {"error": str(e)}
 
-# Authentication routes
 @app.post("/auth/register", response_model=User)
 async def register_user(user_data: UserCreate):
     try:
-        # Validate email format
         if not re.match(r"[^@]+@[^@]+\.[^@]+", user_data.email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid email format"
             )
-        
-        # Validate password length
         if len(user_data.password) < 8:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Password must be at least 8 characters long"
             )
-        
-        # Check if user already exists
         existing_user = find_user_by_email(user_data.email)
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
             )
-        
-        # Create new user    
         now = datetime.utcnow()
         new_user = {
             "email": user_data.email,
@@ -196,16 +158,13 @@ async def register_user(user_data: UserCreate):
         }
         user_id = insert_user(new_user)
         new_user["_id"] = user_id
-        
-        # Return user without password
-        user = document_to_dict(new_user)  # Changed from serialize_id to document_to_dict
+        user = serialize_id(new_user)
         del user["hashed_password"]
         return user
     except HTTPException:
-        # Re-raise HTTP exceptions as they already have status code and detail
         raise
     except Exception as e:
-        logging.error(f"Registration error: {str(e)}")
+        logger.error(f"Registration error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Registration failed due to server error. Please try again later."
@@ -233,7 +192,6 @@ async def read_users_me(current_user = Depends(get_current_active_user)):
         del user["hashed_password"]
     return user
 
-# Trip planning routes - protected with authentication
 @app.post("/api/suggestions", status_code=status.HTTP_200_OK)
 async def suggest_destinations(
     location: Annotated[str, Body()],
@@ -243,10 +201,7 @@ async def suggest_destinations(
     group_type: Annotated[GroupType, Body()],
     current_user = Depends(get_current_active_user)
 ):
-    """Get travel suggestions based on criteria"""
     date = datetime.now().strftime("%Y-%m-%d")
-    
-    # Create suggestion prompt
     prompt_suggest_template = f"""
     You are a travel assistant specializing in budget-conscious travel recommendations. Based on the user's location ({location}), STRICT budget (${budget}), number of people ({people}), group type ({group_type}), number of days ({days}), and starting date ({date}), suggest destinations that are specifically tailored to these parameters.
 
@@ -290,11 +245,7 @@ async def suggest_destinations(
     IMPORTANT: Only include destinations where the total estimated cost is at or below the user's budget of ${budget}. Be realistic about costs based on current prices.
     Do not include any explanation, markdown formatting, or code blocks. Return only the valid JSON object.
     """
-
-    # Get AI response
     result = ai_huggingface(prompt_suggest_template)
-    
-    # Return the raw result for frontend consumption
     return result
 
 @app.post("/api/plans", status_code=status.HTTP_200_OK)
@@ -306,10 +257,7 @@ async def plan_holiday(
     group_type: Annotated[GroupType, Body()],
     current_user = Depends(get_current_active_user)
 ):
-    """Create a holiday plan for a destination"""
     date = datetime.now().strftime("%Y-%m-%d")
-    
-    # Create plan prompt
     prompt_plan_template = f"""
     You are a travel assistant that specializes in creating realistic and budget-conscious travel plans. Generate a detailed {days}-day travel plan for {people} people ({group_type}) visiting {destination} with a STRICT total budget of {budget} dollars, starting on {date}.
 
@@ -350,35 +298,132 @@ async def plan_holiday(
     IMPORTANT: The sum of all costs in the budget_breakdown MUST equal or be less than {budget}. Each suggested activity, hotel, and restaurant must be realistically priced for {destination}.
     Do not include any explanation, markdown formatting, or code blocks. Return only the valid JSON object.
     """
-
-    # Get AI response
     result = ai_huggingface(prompt_plan_template)
-    
-    # Return the raw AI response for frontend consumption
     return result
 
-# Trip management routes
-@app.get("/api/trips", response_model=List[Trip])
+@app.get("/api/trips")
 async def get_user_trips(current_user = Depends(get_current_active_user)):
-    """Get all trips for the current user"""
     trips = find_trips_by_user(current_user["id"])
-    return trips  # Already serialized by find_trips_by_user
+    return [
+        {
+            "id": trip.get("id"),
+            "trip_type": trip.get("trip_type"),
+            "data": trip.get("data"),
+            "created_at": trip.get("created_at"),
+            "updated_at": trip.get("updated_at"),
+        }
+        for trip in trips
+    ]
 
-@app.get("/api/trips/{trip_id}", response_model=Trip)
+@app.get("/api/trips/{trip_id}")
 async def get_trip(trip_id: str, current_user = Depends(get_current_active_user)):
-    """Get a specific trip by ID"""
     trip = find_trip(trip_id, current_user["id"])
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
-    return trip  # Already serialized by find_trip
+    return {
+        "id": trip.get("id"),
+        "trip_type": trip.get("trip_type"),
+        "data": trip.get("data"),
+        "created_at": trip.get("created_at"),
+        "updated_at": trip.get("updated_at"),
+    }
 
 @app.delete("/api/trips/{trip_id}", status_code=status.HTTP_200_OK)
+async def delete_trip_endpoint(trip_id: str, current_user = Depends(get_current_active_user)):
+    deleted_count = delete_trip(trip_id, current_user["id"])
+    if deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Trip not found")
+    return {"detail": "Trip deleted successfully"}
+
+@app.post("/api/trips/save", status_code=status.HTTP_200_OK)
+async def save_trip(
+    trip_type: Annotated[str, Body()],
+    data: Annotated[dict, Body()],
+    current_user = Depends(get_current_active_user)
+):
+    try:
+        now = datetime.utcnow()
+        new_trip = {
+            "user_id": current_user["id"],
+            "trip_type": trip_type,
+            "data": data,
+            "created_at": now,
+            "updated_at": now
+        }
+        trip_id = insert_trip(new_trip)
+        new_trip["_id"] = trip_id
+        return {"message": "Trip saved successfully", "trip_id": str(trip_id)}
+    except Exception as e:
+        logger.error(f"Error saving trip: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save trip"
+        )
+
+async def create_trip(trip_data: TripCreate, current_user) -> Trip:
+    now = datetime.utcnow()
+    new_trip = {
+        "user_id": current_user["id"],
+        "trip_type": trip_data.trip_type,
+        "location": trip_data.location,
+        "destination": trip_data.destination,
+        "budget": trip_data.budget,
+        "people": trip_data.people,
+        "days": trip_data.days,
+        "group_type": trip_data.group_type,
+        "data": trip_data.data,
+        "created_at": now,
+        "updated_at": now
+    }
+    trip_id = insert_trip(new_trip)
+    new_trip["_id"] = trip_id
+    return serialize_id(new_trip)
+
+@app.get("/debug/ping")
+async def debug_ping():
+    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+
+@app.post("/debug/echo")
+async def debug_echo(data: dict):
+    return {"status": "ok", "received": data}
+
+@app.options("/api/{rest_of_path:path}")
+async def options_route(rest_of_path: str):
+    return {"detail": "OK"}
 async def delete_trip_endpoint(trip_id: str, current_user = Depends(get_current_active_user)):
     """Delete a trip by ID"""
     deleted_count = delete_trip(trip_id, current_user["id"])
     if deleted_count == 0:
         raise HTTPException(status_code=404, detail="Trip not found")
     return {"detail": "Trip deleted successfully"}
+
+@app.post("/api/trips/save", status_code=status.HTTP_200_OK)
+async def save_trip(
+    trip_type: Annotated[str, Body()],
+    data: Annotated[dict, Body()],
+    current_user = Depends(get_current_active_user)
+):
+    """Save trip data to database"""
+    try:
+        now = datetime.utcnow()
+        new_trip = {
+            "user_id": current_user["id"],
+            "trip_type": trip_type,
+            "data": data,
+            "created_at": now,
+            "updated_at": now
+        }
+        
+        trip_id = insert_trip(new_trip)
+        new_trip["_id"] = trip_id
+        
+        return {"message": "Trip saved successfully", "trip_id": str(trip_id)}
+    except Exception as e:
+        logger.error(f"Error saving trip: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to save trip"
+        )
 
 # Internal helper function - not exposed as an endpoint
 async def create_trip(trip_data: TripCreate, current_user) -> Trip:
@@ -417,65 +462,5 @@ async def debug_echo(data: dict):
 async def options_route(rest_of_path: str):
     """Handle OPTIONS requests explicitly"""
     return {"detail": "OK"}
-    return {"plan": result_data if 'result_data' in locals() else result}
-
-# Trip management routes
-@app.get("/api/trips", response_model=List[Trip])
-async def get_user_trips(current_user = Depends(get_current_active_user)):
-    """Get all trips for the current user"""
-    trips = find_trips_by_user(current_user["id"])
-    return trips  # Already serialized by find_trips_by_user
-
-@app.get("/api/trips/{trip_id}", response_model=Trip)
-async def get_trip(trip_id: str, current_user = Depends(get_current_active_user)):
-    """Get a specific trip by ID"""
-    trip = find_trip(trip_id, current_user["id"])
-    if not trip:
-        raise HTTPException(status_code=404, detail="Trip not found")
-    return trip  # Already serialized by find_trip
-
-@app.delete("/api/trips/{trip_id}", status_code=status.HTTP_200_OK)
-async def delete_trip_endpoint(trip_id: str, current_user = Depends(get_current_active_user)):
-    """Delete a trip by ID"""
-    deleted_count = delete_trip(trip_id, current_user["id"])
-    if deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Trip not found")
-    return {"detail": "Trip deleted successfully"}
-
-# Internal helper function - not exposed as an endpoint
-async def create_trip(trip_data: TripCreate, current_user) -> Trip:
-    """Helper function to create a trip in the database"""
-    now = datetime.utcnow()
-    new_trip = {
-        "user_id": current_user["id"],
-        "trip_type": trip_data.trip_type,
-        "location": trip_data.location,
-        "destination": trip_data.destination,
-        "budget": trip_data.budget,
-        "people": trip_data.people,
-        "days": trip_data.days,
-        "group_type": trip_data.group_type,
-        "data": trip_data.data,
-        "created_at": now,
-        "updated_at": now
-    }
-    
-    trip_id = insert_trip(new_trip)
-    new_trip["_id"] = trip_id
-    return serialize_id(new_trip)
-
-# Add simple debug endpoints
-@app.get("/debug/ping")
-async def debug_ping():
-    """Simple endpoint to check if the API is accessible"""
-    return {"status": "ok", "timestamp": datetime.now().isoformat()}
-
-@app.post("/debug/echo")
-async def debug_echo(data: dict):
-    """Echo back the received data for testing"""
-    return {"status": "ok", "received": data}
-
-@app.options("/api/{rest_of_path:path}")
-async def options_route(rest_of_path: str):
     """Handle OPTIONS requests explicitly"""
     return {"detail": "OK"}

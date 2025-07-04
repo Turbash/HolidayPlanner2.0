@@ -1,8 +1,9 @@
 import React, { useState } from "react"
-import { Link, useNavigate, useLocation } from "react-router-dom"
+import { Link } from "react-router-dom"
 import FormInput from "./shared/FormInput"
 import axios from "axios"
 import BackToHomeLink from "./shared/BackToHomeLink"
+import { toast } from "react-toastify"
 
 const BACKEND_URL = "http://localhost:8000"
 
@@ -11,23 +12,20 @@ const LoginPage = () => {
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
-  const navigate = useNavigate()
-  const location = useLocation()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError("")
 
-    // Basic validation
     if (!email || !password) {
       setError("Email and password are required")
+      toast.error("Email and password are required")
       return
     }
 
     setLoading(true)
 
     try {
-      // Send login request to backend
       const response = await axios.post(
         `${BACKEND_URL}/auth/login`,
         new URLSearchParams({
@@ -41,27 +39,34 @@ const LoginPage = () => {
         }
       )
 
-      // Make sure we're storing the token with the exact same key used in the API client
       localStorage.setItem("auth_token", response.data.access_token)
-
-      // Immediately set the auth header for subsequent requests
       axios.defaults.headers.common["Authorization"] = `Bearer ${response.data.access_token}`
-
-      // Redirect to the home page after successful login
-      navigate("/", { replace: true })
+      toast.success("Logged in successfully!")
+      localStorage.setItem("showLoginToast", "1");
+      window.location.href = "/";
     } catch (err) {
       if (err.response) {
         if (err.response.status === 401) {
           setError("Invalid email or password")
+          localStorage.setItem("showLoginErrorToast", "Invalid email or password");
+          window.location.href = "/login";
         } else if (err.response.data && err.response.data.detail) {
           setError(err.response.data.detail)
+          localStorage.setItem("showLoginErrorToast", err.response.data.detail);
+          window.location.href = "/login";
         } else {
           setError("Login failed. Please try again.")
+          localStorage.setItem("showLoginErrorToast", "Login failed. Please try again.");
+          window.location.href = "/login";
         }
       } else if (err.request) {
         setError("Network error. Please check your connection and try again.")
+        localStorage.setItem("showLoginErrorToast", "Network error. Please check your connection and try again.");
+        window.location.href = "/login";
       } else {
         setError("An unexpected error occurred. Please try again.")
+        localStorage.setItem("showLoginErrorToast", "An unexpected error occurred. Please try again.");
+        window.location.href = "/login";
       }
     } finally {
       setLoading(false)
@@ -106,7 +111,7 @@ const LoginPage = () => {
           disabled={loading}
           className={`${
             loading ? "opacity-70" : ""
-          } bg-gradient-to-r from-teal-400 to-green-400 text-white font-semibold py-2 rounded-lg shadow hover:scale-105 transition`}
+          } bg-gradient-to-r from-teal-400 to-green-400 cursor-pointer text-white font-semibold py-2 rounded-lg shadow hover:scale-105 transition`}
         >
           {loading ? "Logging in..." : "Log In"}
         </button>

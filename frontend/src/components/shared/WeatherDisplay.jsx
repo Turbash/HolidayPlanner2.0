@@ -73,7 +73,6 @@ const WeatherDisplay = ({ weatherData, location, color = "sky", tripDays }) => {
   return (
     <ResultSection title={`Weather Forecast for ${location}`} color={color}>
       <div className="relative flex justify-center" >
-        {/* Left scroll button - only show when needed */}
         {showLeftScroll && (
           <button 
             onClick={() => scroll('left')}
@@ -86,7 +85,6 @@ const WeatherDisplay = ({ weatherData, location, color = "sky", tripDays }) => {
           </button>
         )}
         
-        {/* Right scroll button - only show when needed */}
         {showRightScroll && (
           <button 
             onClick={() => scroll('right')}
@@ -99,7 +97,6 @@ const WeatherDisplay = ({ weatherData, location, color = "sky", tripDays }) => {
           </button>
         )}
         
-        {/* Scrollable weather cards */}
         <div 
           ref={scrollContainerRef}
           className="flex overflow-x-auto pb-2 hide-scrollbar scroll-smooth"
@@ -138,7 +135,6 @@ const WeatherDisplay = ({ weatherData, location, color = "sky", tripDays }) => {
         </div>
       </div>
       
-      {/* CSS to hide scrollbar */}
       <style jsx="true">{`
         .hide-scrollbar::-webkit-scrollbar {
           display: none;

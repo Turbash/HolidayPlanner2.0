@@ -27,7 +27,6 @@ const TravelForm = ({
 }) => {
   const { location, destination, budget, people, days, groupType } = formValues;
   
-  // Determine which location field to use based on which is provided
   const locationValue = location || destination || "";
   const locationSetter = location !== undefined ? "location" : "destination";
 

@@ -2,28 +2,25 @@ import axios from 'axios';
 
 const BACKEND_URL = 'http://localhost:8000';
 
-// Create a configured axios instance
 const apiClient = axios.create({
   baseURL: BACKEND_URL,
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: false // Important - must be false for wildcard CORS origins
+  withCredentials: false 
 });
 
-// Add request interceptor to set auth token on each request
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('auth_token');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;  // Setting "Bearer {token}"
+      config.headers.Authorization = `Bearer ${token}`;  
     }
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Add response interceptor for debugging
 apiClient.interceptors.response.use(
   response => response,
   error => {
@@ -39,7 +36,6 @@ apiClient.interceptors.response.use(
   }
 );
 
-// Updated weather API function
 export const fetchWeatherData = async (city, tripDays = 5) => {
   try {
     console.log(`Fetching weather for ${city} for ${tripDays} days`);
@@ -74,14 +70,12 @@ export const fetchWeatherData = async (city, tripDays = 5) => {
   }
 };
 
-// Update the fetchSuggestData function
 export const fetchSuggestData = async (location, budget, people, days, groupType) => {
   try {
     console.log(`Sending suggestion request with params:`, {
       location, budget, people, days, group_type: groupType
     });
     
-    // Make the API call to backend using apiClient
     const response = await apiClient.post('/api/suggestions', {
       location,
       budget: parseFloat(budget),
@@ -90,27 +84,24 @@ export const fetchSuggestData = async (location, budget, people, days, groupType
       group_type: groupType
     });
 
-    // Ensure the data is parsed and matches the expected structure
     let data = response.data;
+    console.log('Received suggestion data:', data);
     if (typeof data === "string") {
       data = JSON.parse(data);
     }
 
-    // If the backend returns {suggestions: "...json..."} or just the object, handle both
     if (data && typeof data.suggestions === "string") {
       data = JSON.parse(data.suggestions);
     } else if (data && data.suggestions) {
       data = data.suggestions;
     }
 
-    // Ensure all required fields exist (fill with defaults if missing)
     data.suggested_destinations = data.suggested_destinations || [];
     data.itinerary_for_top_choice = data.itinerary_for_top_choice || [];
     data.local_customs = data.local_customs || [];
     data.packing_tips = data.packing_tips || [];
     data.budget_considerations = data.budget_considerations || [];
 
-    // Save the data to localStorage in the correct format
     localStorage.setItem('destinationSuggestions', JSON.stringify({
       location,
       budget,
@@ -127,14 +118,12 @@ export const fetchSuggestData = async (location, budget, people, days, groupType
   }
 };
 
-// Update the fetchPlanData function
 export const fetchPlanData = async (destination, budget, people, days, groupType) => {
   try {
     console.log(`Sending plan request with params:`, {
       destination, budget, people, days, group_type: groupType
     });
     
-    // Make the API call to backend using apiClient
     const response = await apiClient.post('/api/plans', {
       destination,
       budget: parseFloat(budget),
@@ -142,28 +131,25 @@ export const fetchPlanData = async (destination, budget, people, days, groupType
       days: parseInt(days),
       group_type: groupType
     });
+    console.log('Received plan data:', response.data);
 
-    // Ensure the data is parsed and matches the expected structure
     let data = response.data;
     if (typeof data === "string") {
       data = JSON.parse(data);
     }
 
-    // If the backend returns {plan: "...json..."} or just the object, handle both
     if (data && typeof data.plan === "string") {
       data = JSON.parse(data.plan);
     } else if (data && data.plan) {
       data = data.plan;
     }
 
-    // Ensure all required fields exist (fill with defaults if missing)
     data.itinerary = data.itinerary || [];
     data.accommodation_suggestions = data.accommodation_suggestions || [];
     data.local_customs = data.local_customs || [];
     data.packing_tips = data.packing_tips || [];
     data.budget_breakdown = data.budget_breakdown || {};
 
-    // Save the data to localStorage in the correct format
     const localData = {
       formParams: { destination, budget, people, days, groupType },
       planData: data
@@ -177,17 +163,18 @@ export const fetchPlanData = async (destination, budget, people, days, groupType
   }
 };
 
-// Add debug function to test connectivity
-export const testApiConnection = async () => {
+export const saveTripToDatabase = async (tripData, tripType) => {
   try {
-    const response = await apiClient.get('/debug/ping');
-    console.log('API connection successful:', response.data);
-    return true;
+    const response = await apiClient.post('/api/trips/save', {
+      trip_type: tripType, 
+      data: tripData 
+    });
+    
+    return response.data;
   } catch (error) {
-    console.error('API connection failed:', error);
-    return false;
+    console.error('Error saving trip to database:', error);
+    throw error;
   }
 };
 
-// Export apiClient for use in other components
 export { apiClient };

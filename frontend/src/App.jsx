@@ -1,9 +1,10 @@
 import React from "react"
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
 import { AuthProvider } from "./contexts/AuthContext"
+import { ToastContainer, toast } from "react-toastify"
+import "react-toastify/dist/ReactToastify.css"
 
-// Components
-import HomePage from "./components/HomePage" // Changed from HeroSection
+import HomePage from "./components/HomePage" 
 import LoginPage from "./components/LoginPage"
 import SignupPage from "./components/SignupPage"
 import PlanHolidayForm from "./components/PlanHolidayForm"
@@ -11,20 +12,43 @@ import SuggestDestinationsForm from "./components/SuggestDestinationsForm"
 import PlanResultPage from "./components/PlanResultPage"
 import SuggestResultPage from "./components/SuggestResultPage"
 import DashboardPage from "./components/DashboardPage"
-import TripDetailPage from "./components/TripDetailPage"
 import ProtectedRoute from "./components/shared/ProtectedRoute"
+import DashboardTripView from "./components/DashboardTripView"
 
 function App() {
+  React.useEffect(() => {
+    setTimeout(() => {
+      if (localStorage.getItem("showLoginToast")) {
+        toast.success("Logged in successfully!");
+        localStorage.removeItem("showLoginToast");
+      }
+      if (localStorage.getItem("showSignupToast")) {
+        toast.success("Account created and logged in!");
+        localStorage.removeItem("showSignupToast");
+      }
+      if (localStorage.getItem("showLogoutToast")) {
+        toast.info("Logged out successfully!");
+        localStorage.removeItem("showLogoutToast");
+      }
+      if (localStorage.getItem("showLoginErrorToast")) {
+        toast.error(localStorage.getItem("showLoginErrorToast"));
+        localStorage.removeItem("showLoginErrorToast");
+      }
+      if (localStorage.getItem("showSignupErrorToast")) {
+        toast.error(localStorage.getItem("showSignupErrorToast"));
+        localStorage.removeItem("showSignupErrorToast");
+      }
+    }, 100); 
+  }, []);
+
   return (
     <AuthProvider>
       <Router>
         <Routes>
-          {/* Use HomePage as the main landing page */}
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
           
-          {/* Protected routes */}
           <Route path="/dashboard" element={
             <ProtectedRoute>
               <DashboardPage />
@@ -33,7 +57,7 @@ function App() {
           
           <Route path="/trips/:tripId" element={
             <ProtectedRoute>
-              <TripDetailPage />
+              <DashboardTripView />
             </ProtectedRoute>
           } />
           
@@ -61,10 +85,10 @@ function App() {
             </ProtectedRoute>
           } />
           
-          {/* Fallback route */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>
+      <ToastContainer position="top-center" autoClose={2500} />
     </AuthProvider>
   )
 }

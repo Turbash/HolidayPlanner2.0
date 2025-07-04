@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+import { toast } from "react-toastify";
 import SummaryTable from "./SummaryTable";
 import LoadingState from "./shared/LoadingState";
 import ErrorState from "./shared/ErrorState";
@@ -8,6 +9,7 @@ import ResultLayout from "./shared/ResultLayout";
 import ResultSection from "./shared/ResultSection";
 import ListItems from "./shared/ListItems";
 import WeatherDisplay from "./shared/WeatherDisplay";
+import { saveTripToDatabase } from "../utils/api";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -17,38 +19,56 @@ const SuggestResultPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [formParams, setFormParams] = useState({});
+  const [suggestData, setSuggestData] = useState(null);
   const navigate = useNavigate();
   
   useEffect(() => {
     try {
-      // Simple loading from localStorage
-      const savedData = localStorage.getItem("destinationSuggestions");
-      
+      const savedData = localStorage.getItem('destinationSuggestions');
       if (!savedData) {
-        setError("No destination suggestions found. Please search for destinations first.");
+        setError("No suggestion data found. Please get suggestions first.");
         setLoading(false);
         return;
       }
-      
-      // Parse the data
       const parsedData = JSON.parse(savedData);
-      
-      // Check if suggestions is a string (needs parsing)
-      if (typeof parsedData.suggestions === 'string') {
-        parsedData.suggestions = JSON.parse(parsedData.suggestions);
+
+      // suggestions are now under .suggestions or .data
+      let suggestions = parsedData.suggestions;
+      if (typeof suggestions === "string") {
+        try {
+          suggestions = JSON.parse(suggestions);
+        } catch {
+          suggestions = {};
+        }
       }
-      
-      setData(parsedData);
+      if (suggestions && suggestions.data) {
+        setSuggestData(suggestions.data);
+      } else if (suggestions) {
+        setSuggestData(suggestions);
+      } else {
+        setSuggestData(parsedData.data || {});
+      }
+
+      // Set formParams from parsedData (for your structure)
+      setFormParams({
+        location: parsedData.location || "",
+        budget: parsedData.budget || "",
+        days: parsedData.days || "",
+        people: parsedData.people || "",
+        groupType: parsedData.groupType || ""
+      });
+
       setWeatherData(parsedData.weather || null);
       setLoading(false);
     } catch (err) {
-      console.error("Error loading destination suggestions:", err);
-      setError("Failed to load destination suggestions. Please try again.");
+      console.error("Error loading suggestion data:", err);
+      setError("Failed to load suggestion data. Please try again.");
       setLoading(false);
     }
   }, []);
 
-  // Function to save the trip
+  // Function to save the suggestions
   const handleSaveTrip = async () => {
     try {
       // Check if we're logged in
@@ -58,25 +78,23 @@ const SuggestResultPage = () => {
         return;
       }
 
-      // Set authorization header
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      // Get the complete suggestion data from localStorage
+      const savedData = localStorage.getItem('destinationSuggestions');
+      if (!savedData) {
+        setError("No suggestion data found to save.");
+        return;
+      }
+      const suggestToSave = JSON.parse(savedData);
       
-      // Make API call to save the trip
-      await axios.post(`${BACKEND_URL}/api/suggestions`, {
-        location: formParams.location,
-        budget: parseFloat(formParams.budget),
-        people: parseInt(formParams.people),
-        days: parseInt(formParams.days),
-        group_type: formParams.groupType
-      });
-      
+      // Save to database using the new API endpoint
+      await saveTripToDatabase(suggestToSave, 'suggest');
       setSaveSuccess(true);
-      
-      // Hide success message after 3 seconds
+      toast.success("Suggestions saved successfully!");
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       console.error('Error saving suggestions:', err);
       setError('Failed to save the suggestions. Please try again.');
+      toast.error("Failed to save the suggestions. Please try again.");
     }
   };
 
@@ -88,15 +106,15 @@ const SuggestResultPage = () => {
     return <ErrorState error={error} returnPath="/suggest" />;
   }
 
-  // Get form parameters and suggestions from data
-  const suggestions = data?.suggestions;
-  const formParams = {
-    location: data?.location || "Unknown",
-    budget: data?.budget || "0",
-    days: data?.days || "0",
-    people: data?.people || "1",
-    groupType: data?.groupType || "solo"
-  };
+  if (!suggestData) {
+    return <ErrorState 
+      error="No suggestion data available. Please get suggestions first." 
+      returnPath="/suggest" 
+    />;
+  }
+
+  // Use suggestData as the canonical suggestions object
+  const suggestions = suggestData;
 
   // Create summary rows for the SummaryTable component
   const summaryRows = [
@@ -114,7 +132,7 @@ const SuggestResultPage = () => {
   const summaryComponent = <SummaryTable summaryRows={summaryRows} title="Trip Details" />;
 
   // Get the top destination for weather
-  const topDestination = data?.suggestions?.suggested_destinations?.[0]?.destination || "destination";
+  const topDestination = suggestions?.suggested_destinations?.[0]?.destination || "destination";
 
   return (
     <ResultLayout
@@ -132,7 +150,7 @@ const SuggestResultPage = () => {
           </Link>
           <button
             onClick={handleSaveTrip}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+            className="px-4 py-2 bg-green-600 text-white cursor-pointer rounded-lg hover:bg-green-700 transition"
           >
             Save Suggestions
           </button>
@@ -161,7 +179,7 @@ const SuggestResultPage = () => {
         emptyMessage="No destination suggestions available."
       >
         <div className="space-y-4">
-          {suggestions.suggested_destinations.map((destination, index) => (
+          {suggestions?.suggested_destinations?.map((destination, index) => (
             <div key={index} className="bg-teal-50 p-4 rounded-lg shadow">
               <div className="flex justify-between items-start">
                 <h3 className="text-xl font-semibold text-teal-800">{destination.destination}</h3>

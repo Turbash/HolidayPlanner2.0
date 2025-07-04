@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchPlanData } from "../utils/api";
 import TravelForm from "./shared/TravelForm";
+import { toast } from "react-toastify";
 
 const PlanHolidayForm = () => {
   const [formValues, setFormValues] = useState({
@@ -35,18 +36,19 @@ const PlanHolidayForm = () => {
         formValues.days, 
         formValues.groupType
       );
-      
+      toast.success("Plan generated successfully!");
       navigate('/plan/result');
     } catch (error) {
       console.error("Error generating plan:", error);
       setError("Failed to generate plan. Please try again.");
+      toast.error("Failed to generate plan. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <>
+    <section className="w-full min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-teal-100 via-sky-100 to-green-100">
       <TravelForm
         title="Plan a Holiday"
         formValues={formValues}
@@ -61,7 +63,7 @@ const PlanHolidayForm = () => {
         loadingText="Generating Plan..."
         locationLabel="Destination"
       />
-    </>
+    </section>
   );
 };
 

@@ -8,10 +8,12 @@ import ResultLayout from "./shared/ResultLayout";
 import ResultSection from "./shared/ResultSection";
 import ListItems from "./shared/ListItems";
 import WeatherDisplay from "./shared/WeatherDisplay";
+import { saveTripToDatabase } from "../utils/api";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
-// Axios interceptor for global 401 handling
 axios.interceptors.response.use(
   response => response,
   error => {
@@ -33,32 +35,24 @@ const PlanResultPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Redirect to login if not authenticated
-    const token = localStorage.getItem('auth_token');
-    if (!token) {
-      navigate('/login');
-      return;
-    }
     try {
-      // Simple loading from localStorage
       const savedData = localStorage.getItem('holidayPlan');
-      
       if (!savedData) {
         setError("No plan data found. Please create a plan first.");
         setLoading(false);
         return;
       }
-      
-      // Parse the data
       const parsedData = JSON.parse(savedData);
-      
-      // Check if planData is a string (needs parsing)
-      if (typeof parsedData.planData === 'string') {
-        setPlanData(JSON.parse(parsedData.planData));
+
+      let plan = parsedData.planData;
+      if (plan && plan.data) {
+        setPlanData(plan.data);
+      } else if (plan) {
+        setPlanData(plan);
       } else {
-        setPlanData(parsedData.planData);
+        setPlanData(parsedData.data || {});
       }
-      
+
       setFormParams(parsedData.formParams || {});
       setWeatherData(parsedData.weather || null);
       setLoading(false);
@@ -67,37 +61,29 @@ const PlanResultPage = () => {
       setError("Failed to load plan data. Please try again.");
       setLoading(false);
     }
-  }, [navigate]);
+  }, []);
 
-  // Function to save the trip
   const handleSaveTrip = async () => {
     try {
-      // Check if we're logged in
       const token = localStorage.getItem('auth_token');
       if (!token) {
         navigate('/login', { state: { from: '/plan/result' } });
         return;
       }
-
-      // Set authorization header
-      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-      
-      // Make API call to save the trip
-      await axios.post(`${BACKEND_URL}/api/plans`, {
-        destination: formParams.destination,
-        budget: parseFloat(formParams.budget),
-        people: parseInt(formParams.people),
-        days: parseInt(formParams.days),
-        group_type: formParams.groupType
-      });
-      
+      const savedData = localStorage.getItem('holidayPlan');
+      if (!savedData) {
+        setError("No plan data found to save.");
+        return;
+      }
+      const planToSave = JSON.parse(savedData);
+      await saveTripToDatabase(planToSave, 'plan');
       setSaveSuccess(true);
-      
-      // Hide success message after 3 seconds
+      toast.success("Trip saved successfully!", { position: "top-center", autoClose: 2500 });
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
       console.error('Error saving trip:', err);
       setError('Failed to save the trip. Please try again.');
+      toast.error("Failed to save the trip. Please try again.", { position: "top-center", autoClose: 3000 });
     }
   };
 
@@ -116,7 +102,6 @@ const PlanResultPage = () => {
     />;
   }
   
-  // Create summary rows from available data
   const summaryRows = [
     { label: "Destination", value: formParams.destination || "Unknown" },
     { label: "Days", value: planData.itinerary?.length || 0 },
@@ -142,20 +127,15 @@ const PlanResultPage = () => {
           </Link>
           <button
             onClick={handleSaveTrip}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+            className="px-4 py-2 bg-green-600 text-white rounded-lg cursor-pointer hover:bg-green-700 transition"
           >
             Save Trip
           </button>
         </div>
       }
     >
-      {saveSuccess && (
-        <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-          Trip saved successfully!
-        </div>
-      )}
+      <ToastContainer />
       
-      {/* Weather Display - Pass the trip days */}
       <WeatherDisplay 
         weatherData={weatherData} 
         location={formParams.destination} 
@@ -163,7 +143,6 @@ const PlanResultPage = () => {
         tripDays={parseInt(formParams.days) || 5}
       />
       
-      {/* Budget Breakdown Section */}
       {planData.budget_breakdown && (
         <ResultSection title="Budget Breakdown" color="blue">
           <ul>
@@ -177,7 +156,6 @@ const PlanResultPage = () => {
         </ResultSection>
       )}
       
-      {/* Itinerary Section */}
       <ResultSection 
         title={planData.itinerary?.length > 0 ? `${planData.itinerary.length}-Day Itinerary` : "Itinerary"}
         color="teal"
@@ -212,7 +190,6 @@ const PlanResultPage = () => {
         </ul>
       </ResultSection>
       
-      {/* Accommodation Suggestions */}
       <ResultSection 
         title="Recommended Accommodations"
         color="purple"
@@ -236,7 +213,6 @@ const PlanResultPage = () => {
         </ul>
       </ResultSection>
       
-      {/* Local Customs */}
       <ResultSection 
         title="Local Customs" 
         color="blue"
@@ -246,7 +222,6 @@ const PlanResultPage = () => {
         <ListItems items={planData.local_customs} />
       </ResultSection>
       
-      {/* Packing Tips */}
       <ResultSection 
         title="Packing Tips" 
         color="green"

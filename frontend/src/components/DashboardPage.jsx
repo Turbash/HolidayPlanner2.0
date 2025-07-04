@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import axios from 'axios';
 import LoadingState from "./shared/LoadingState";
+import { toast } from "react-toastify";
 
 const BACKEND_URL = 'http://localhost:8000';
 
@@ -30,12 +31,17 @@ const DashboardPage = () => {
         
         // Fetch user trips
         const tripsResponse = await axios.get(`${BACKEND_URL}/api/trips`);
-        setTrips(tripsResponse.data || []);
+        // Order trips by most recent first
+        const tripsSorted = (tripsResponse.data || []).slice().sort((a, b) => {
+          const dateA = new Date(a.created_at);
+          const dateB = new Date(b.created_at);
+          return dateB - dateA;
+        });
+        setTrips(tripsSorted);
       } catch (err) {
         console.error('Error fetching data:', err);
         setError('Failed to load your trips. Please try again later.');
       } finally {
-        // Always stop loading, even if there are no trips
         setLoading(false);
       }
     };
@@ -45,20 +51,21 @@ const DashboardPage = () => {
   
   const handleLogout = () => {
     localStorage.removeItem('auth_token');
+    localStorage.setItem("showLogoutToast", "1");
     window.location.href = '/';
   };
-  
+
   const handleDeleteTrip = async (tripId) => {
     if (!window.confirm('Are you sure you want to delete this trip?')) {
       return;
     }
-    
     try {
       await axios.delete(`${BACKEND_URL}/api/trips/${tripId}`);
       setTrips(trips.filter(trip => trip.id !== tripId));
+      toast.success("Trip deleted successfully!");
     } catch (err) {
       console.error('Error deleting trip:', err);
-      alert('Failed to delete trip. Please try again.');
+      toast.error('Failed to delete trip. Please try again.');
     }
   };
   
@@ -93,7 +100,7 @@ const DashboardPage = () => {
             </Link>
             <button
               onClick={handleLogout}
-              className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+              className="px-4 py-2 bg-gray-200 cursor-pointer text-gray-700 rounded-lg hover:bg-gray-300 transition"
             >
               Logout
             </button>
@@ -124,38 +131,82 @@ const DashboardPage = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {trips.map(trip => (
-                  <div key={trip.id} className="bg-gray-50 rounded-lg overflow-hidden shadow border border-gray-100">
-                    <div className="p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="text-lg font-semibold text-teal-700">
-                          {trip.trip_type === 'plan' ? trip.destination : 'Suggestions from ' + trip.location}
-                        </h3>
-                        <span className={`${trip.trip_type === 'plan' ? 'bg-teal-100 text-teal-800' : 'bg-blue-100 text-blue-800'} text-xs px-2 py-1 rounded-full`}>
-                          {trip.trip_type === 'plan' ? 'Plan' : 'Suggestions'}
-                        </span>
-                      </div>
-                      
-                      <div className="text-sm text-gray-600 mb-4">
-                        <p>Budget: ${trip.budget}</p>
-                        <p>{trip.days} days • {trip.people} people • {trip.group_type}</p>
-                        <p>Created: {formatDate(trip.created_at)}</p>
-                      </div>
-                      
-                      <div className="flex justify-between mt-4">
-                        <Link to={`/trips/${trip.id}`} className="text-teal-600 hover:underline text-sm">
-                          View Details
-                        </Link>
-                        <button
-                          onClick={() => handleDeleteTrip(trip.id)}
-                          className="text-red-500 hover:text-red-700 text-sm"
-                        >
-                          Delete
-                        </button>
+                {trips.map(trip => {
+                  // Unwrap trip data for display
+                  let data = trip.data || {};
+                  if (typeof data === "string") {
+                    try {
+                      data = JSON.parse(data);
+                    } catch {
+                      data = {};
+                    }
+                  }
+                  // For plan trips
+                  let formParams = data.formParams || {};
+                  let planData = data.planData || {};
+                  if (typeof planData === "string") {
+                    try {
+                      planData = JSON.parse(planData);
+                    } catch {
+                      planData = {};
+                    }
+                  }
+                  const suggestData = data.suggestions || data;
+
+                  let title = "";
+                  let budget = "";
+                  let days = "";
+                  let people = "";
+                  let groupType = "";
+                  if (trip.trip_type === "plan") {
+                    title = formParams.destination || "Planned Trip";
+                    budget = formParams.budget || planData.budget || "";
+                    days = formParams.days || planData.days || (planData.itinerary?.length || "");
+                    people = formParams.people || planData.people || "";
+                    groupType = formParams.groupType || planData.groupType || "";
+                  } else {
+                    title = suggestData.suggested_destinations?.[0]?.destination
+                      ? `Suggestions: ${suggestData.suggested_destinations[0].destination}`
+                      : "Suggestions";
+                    budget = data.budget || suggestData.budget || "";
+                    days = data.days || suggestData.days || (suggestData.itinerary_for_top_choice?.length || "");
+                    people = data.people || suggestData.people || "";
+                    groupType = data.groupType || suggestData.groupType || "";
+                  }
+
+                  return (
+                    <div key={trip.id} className="bg-gray-50 rounded-lg overflow-hidden shadow border border-gray-100">
+                      <div className="p-4">
+                        <div className="flex justify-between items-start mb-2">
+                          <h3 className="text-lg font-semibold text-teal-700">
+                            {title}
+                          </h3>
+                          <span className={`${trip.trip_type === 'plan' ? 'bg-teal-100 text-teal-800' : 'bg-blue-100 text-blue-800'} text-xs px-2 py-1 rounded-full`}>
+                            {trip.trip_type === 'plan' ? 'Plan' : 'Suggestions'}
+                          </span>
+                        </div>
+                        <div className="text-sm text-gray-600 mb-4">
+                          {budget && <p>Budget: ${budget}</p>}
+                          {days && people && groupType && (
+                            <p>{days} days • {people} people • {groupType}</p>
+                          )}
+                          <p>Created: {formatDate(trip.created_at)}</p>
+                        </div>
+                        <div className="flex justify-between mt-4">
+                          <Link to={`/trips/${trip.id}`} className="text-teal-600 hover:underline text-sm">
+                            View Details
+                          </Link>
+                          <button
+                            onClick={() => handleDeleteTrip(trip.id)}
+                            className="text-red-500 hover:text-red-700 text-sm cursor-pointer"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

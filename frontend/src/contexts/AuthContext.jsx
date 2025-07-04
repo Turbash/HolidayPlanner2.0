@@ -11,23 +11,19 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   
-  // Check if user is logged in (has valid token)
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem(TOKEN_KEY);
       
       if (token) {
         try {
-          // Set default authorization header
           axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
           
-          // Fetch user profile
           const response = await axios.get(`${BACKEND_URL}/auth/me`);
           setUser(response.data);
           setIsAuthenticated(true);
         } catch (error) {
           console.error('Authentication error:', error);
-          // Clear invalid token
           localStorage.removeItem(TOKEN_KEY);
           delete axios.defaults.headers.common['Authorization'];
         }
@@ -39,7 +35,6 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
   
-  // Logout function
   const logout = () => {
     localStorage.removeItem(TOKEN_KEY);
     delete axios.defaults.headers.common['Authorization'];
