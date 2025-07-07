@@ -6,51 +6,41 @@ const WeatherDisplay = ({ weatherData, location, color = "sky", tripDays }) => {
   const [showLeftScroll, setShowLeftScroll] = useState(false);
   const [showRightScroll, setShowRightScroll] = useState(false);
 
-  // Check for scrollability and update button visibility
   const checkScrollability = () => {
     if (!scrollContainerRef.current) return;
     
     const container = scrollContainerRef.current;
     
-    // Check if content overflows
     const hasOverflow = container.scrollWidth > container.clientWidth;
     
-    // Only show left button if scrolled right
-    setShowLeftScroll(container.scrollLeft > 10); // 10px buffer
+    setShowLeftScroll(container.scrollLeft > 10);
     
-    // Only show right button if there's more content to scroll to
     setShowRightScroll(
       hasOverflow && container.scrollLeft < container.scrollWidth - container.clientWidth - 10
     );
   };
 
-  // Initialize and add event listeners
   useEffect(() => {
     const container = scrollContainerRef.current;
     if (container) {
-      // Initial check
       checkScrollability();
       
-      // Add scroll event listener
       container.addEventListener('scroll', checkScrollability);
       
-      // Add resize listener to recheck when window changes
       window.addEventListener('resize', checkScrollability);
       
-      // Cleanup
       return () => {
         container.removeEventListener('scroll', checkScrollability);
         window.removeEventListener('resize', checkScrollability);
       };
     }
-  }, [weatherData]); // Re-run when weather data changes
+  }, [weatherData]); 
 
-  // Scroll left/right buttons functionality
   const scroll = (direction) => {
     if (!scrollContainerRef.current) return;
     
     const container = scrollContainerRef.current;
-    const scrollAmount = container.clientWidth * 0.75; // Scroll 75% of the visible width
+    const scrollAmount = container.clientWidth * 0.75; 
     
     container.scrollBy({
       left: direction === 'right' ? scrollAmount : -scrollAmount,
@@ -58,7 +48,6 @@ const WeatherDisplay = ({ weatherData, location, color = "sky", tripDays }) => {
     });
   };
 
-  // Check if we have valid weather data
   if (!weatherData || weatherData.error || weatherData.length === 0) {
     return (
       <ResultSection

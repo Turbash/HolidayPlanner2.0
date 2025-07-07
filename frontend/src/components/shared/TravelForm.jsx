@@ -22,7 +22,6 @@ const TravelForm = ({
   alternatePrompt,
   submitButtonText,
   loadingText,
-  // locationLabel lets us customize between "Destination" and "Your Location"
   locationLabel = "Location"
 }) => {
   const { location, destination, budget, people, days, groupType } = formValues;

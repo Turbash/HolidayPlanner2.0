@@ -33,6 +33,8 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 HF_API_TOKEN = os.getenv("HF_API_TOKEN")
 MODEL_ID = os.getenv("MODEL_ID")
+API_KEY = os.getenv("WEATHERAPI_KEY")
+
 app = FastAPI()
 
 app.add_middleware(
@@ -61,70 +63,25 @@ async def read_root():
 
 @app.get("/weather/{city}")
 async def get_weather(city: str, days: int = 5):
+    """
+    Fetch weather forecast for a city using weatherapi.com.
+    """
     try:
-        api_key = os.getenv("OPENWEATHERMAP_API_KEY")
-        if not api_key:
-            weather_data = {"list": []}
-            conditions = [
-                {"description": "clear sky", "icon": "01d"},
-                {"description": "few clouds", "icon": "02d"},
-                {"description": "scattered clouds", "icon": "03d"},
-                {"description": "broken clouds", "icon": "04d"},
-                {"description": "shower rain", "icon": "09d"},
-                {"description": "rain", "icon": "10d"},
-                {"description": "thunderstorm", "icon": "11d"},
-                {"description": "snow", "icon": "13d"},
-                {"description": "mist", "icon": "50d"}
-            ]
-            base_temp = random.randint(15, 25)
-            for day in range(days):
-                date = datetime.now() + timedelta(days=day)
-                daily_temp = base_temp + random.randint(-3, 3)
-                condition = random.choice(conditions)
-                weather_data["list"].append({
-                    "dt": int(date.timestamp()),
-                    "main": {
-                        "temp": daily_temp,
-                        "temp_min": daily_temp - random.randint(1, 3),
-                        "temp_max": daily_temp + random.randint(1, 3),
-                        "humidity": random.randint(60, 90)
-                    },
-                    "weather": [
-                        {
-                            "description": condition["description"],
-                            "icon": condition["icon"]
-                        }
-                    ]
-                })
-            return weather_data
-        response = requests.get(
-            "https://api.openweathermap.org/data/2.5/forecast/daily",
-            params={
-                "q": city,
-                "units": "metric",
-                "cnt": days,
-                "appid": api_key
-            }
-        )
+        if not API_KEY:
+            return {"error": "Weather API key not set"}
+        days = min(days, 14)
+        url = f"https://api.weatherapi.com/v1/forecast.json"
+        params = {
+            "key": API_KEY,
+            "q": city,
+            "days": days,
+            "aqi": "no",
+            "alerts": "no"
+        }
+        response = requests.get(url, params=params)
         if response.status_code != 200:
-            response = requests.get(
-                "https://api.openweathermap.org/data/2.5/forecast",
-                params={
-                    "q": city,
-                    "units": "metric",
-                    "appid": api_key
-                }
-            )
-            if response.status_code == 200:
-                data = response.json()
-                daily_forecasts = {}
-                for item in data["list"]:
-                    date = datetime.fromtimestamp(item["dt"]).strftime("%Y-%m-%d")
-                    daily_forecasts[date] = item
-                daily_data = {
-                    "list": list(daily_forecasts.values())
-                }
-                return daily_data
+            return {"error": f"Failed to fetch weather: {response.text}"}
+        return response.json()
     except Exception as e:
         return {"error": str(e)}
 
@@ -386,81 +343,3 @@ async def debug_ping():
 @app.post("/debug/echo")
 async def debug_echo(data: dict):
     return {"status": "ok", "received": data}
-
-@app.options("/api/{rest_of_path:path}")
-async def options_route(rest_of_path: str):
-    return {"detail": "OK"}
-async def delete_trip_endpoint(trip_id: str, current_user = Depends(get_current_active_user)):
-    """Delete a trip by ID"""
-    deleted_count = delete_trip(trip_id, current_user["id"])
-    if deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Trip not found")
-    return {"detail": "Trip deleted successfully"}
-
-@app.post("/api/trips/save", status_code=status.HTTP_200_OK)
-async def save_trip(
-    trip_type: Annotated[str, Body()],
-    data: Annotated[dict, Body()],
-    current_user = Depends(get_current_active_user)
-):
-    """Save trip data to database"""
-    try:
-        now = datetime.utcnow()
-        new_trip = {
-            "user_id": current_user["id"],
-            "trip_type": trip_type,
-            "data": data,
-            "created_at": now,
-            "updated_at": now
-        }
-        
-        trip_id = insert_trip(new_trip)
-        new_trip["_id"] = trip_id
-        
-        return {"message": "Trip saved successfully", "trip_id": str(trip_id)}
-    except Exception as e:
-        logger.error(f"Error saving trip: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to save trip"
-        )
-
-# Internal helper function - not exposed as an endpoint
-async def create_trip(trip_data: TripCreate, current_user) -> Trip:
-    """Helper function to create a trip in the database"""
-    now = datetime.utcnow()
-    new_trip = {
-        "user_id": current_user["id"],
-        "trip_type": trip_data.trip_type,
-        "location": trip_data.location,
-        "destination": trip_data.destination,
-        "budget": trip_data.budget,
-        "people": trip_data.people,
-        "days": trip_data.days,
-        "group_type": trip_data.group_type,
-        "data": trip_data.data,
-        "created_at": now,
-        "updated_at": now
-    }
-    
-    trip_id = insert_trip(new_trip)
-    new_trip["_id"] = trip_id
-    return serialize_id(new_trip)
-
-# Add simple debug endpoints
-@app.get("/debug/ping")
-async def debug_ping():
-    """Simple endpoint to check if the API is accessible"""
-    return {"status": "ok", "timestamp": datetime.now().isoformat()}
-
-@app.post("/debug/echo")
-async def debug_echo(data: dict):
-    """Echo back the received data for testing"""
-    return {"status": "ok", "received": data}
-
-@app.options("/api/{rest_of_path:path}")
-async def options_route(rest_of_path: str):
-    """Handle OPTIONS requests explicitly"""
-    return {"detail": "OK"}
-    """Handle OPTIONS requests explicitly"""
-    return {"detail": "OK"}

@@ -7,22 +7,18 @@ from pydantic import BaseModel, Field, EmailStr
 import pymongo
 from bson import ObjectId
 
-# Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Load environment variables
 load_dotenv()
 MONGODB_URI = os.getenv("MONGODB_URI")
 DB_NAME = os.getenv("DB_NAME", "holiday_planner")
 
-# In-memory storage as fallback
 in_memory_db = {
     "users": [],
     "trips": []
 }
 
-# MongoDB connection with fallback
 using_mongodb = False
 client = None
 db = None
@@ -37,7 +33,6 @@ try:
             socketTimeoutMS=5000
         )
         
-        # Test the connection
         client.admin.command('ping')
         
         db = client[DB_NAME]
@@ -54,17 +49,14 @@ except Exception as e:
     logger.warning("Using in-memory storage as fallback")
     using_mongodb = False
 
-# Helper for converting MongoDB ObjectId to string
 def serialize_id(item):
     if isinstance(item, dict) and item.get("_id"):
-        # Create a copy to avoid modifying the original
         item_copy = dict(item)
         item_copy["id"] = str(item_copy["_id"])
         del item_copy["_id"]
         return item_copy
     return item
 
-# Pydantic models for data validation
 class TokenData(BaseModel):
     email: Optional[str] = None
 
@@ -91,7 +83,7 @@ class Token(BaseModel):
 
 class TripBase(BaseModel):
     user_id: str
-    trip_type: str  # "suggest" or "plan"
+    trip_type: str  
     location: Optional[str] = None
     destination: Optional[str] = None
     budget: float
@@ -100,7 +92,7 @@ class TripBase(BaseModel):
     group_type: str
 
 class TripCreate(TripBase):
-    data: Dict[str, Any]  # Raw API response data
+    data: Dict[str, Any]  
 
 class TripResponse(TripBase):
     id: str
@@ -108,7 +100,6 @@ class TripResponse(TripBase):
     created_at: datetime
     updated_at: datetime
 
-# MongoDB operations with fallback to in-memory storage
 def find_user_by_email(email):
     try:
         if using_mongodb:
@@ -121,7 +112,6 @@ def find_user_by_email(email):
             return None
     except Exception as e:
         logger.error(f"Error finding user by email: {e}")
-        # Fallback to in-memory when there's an error
         for user in in_memory_db["users"]:
             if user.get("email") == email:
                 return serialize_id(user)
@@ -139,7 +129,6 @@ def insert_user(user_data):
             return user_id
     except Exception as e:
         logger.error(f"Error inserting user: {e}")
-        # Fallback to in-memory when there's an error
         user_id = str(ObjectId())
         user_data["_id"] = user_id
         in_memory_db["users"].append(user_data)
@@ -160,7 +149,6 @@ def find_trip(trip_id, user_id=None):
             return None
     except Exception as e:
         logger.error(f"Error finding trip: {e}")
-        # Fallback to in-memory
         for trip in in_memory_db["trips"]:
             if str(trip.get("_id")) == trip_id and (not user_id or trip.get("user_id") == user_id):
                 return serialize_id(trip)
@@ -175,7 +163,6 @@ def find_trips_by_user(user_id):
             return [serialize_id(trip) for trip in in_memory_db["trips"] if trip.get("user_id") == user_id]
     except Exception as e:
         logger.error(f"Error finding trips: {e}")
-        # Fallback to in-memory
         return [serialize_id(trip) for trip in in_memory_db["trips"] if trip.get("user_id") == user_id]
 
 def insert_trip(trip_data):
@@ -190,7 +177,6 @@ def insert_trip(trip_data):
             return trip_id
     except Exception as e:
         logger.error(f"Error inserting trip: {e}")
-        # Fallback to in-memory
         trip_id = str(ObjectId())
         trip_data["_id"] = trip_id
         in_memory_db["trips"].append(trip_data)
@@ -210,7 +196,6 @@ def delete_trip(trip_id, user_id):
             return 0
     except Exception as e:
         logger.error(f"Error deleting trip: {e}")
-        # Fallback to in-memory
         trip_index = next((i for i, trip in enumerate(in_memory_db["trips"]) 
                         if str(trip.get("_id")) == trip_id and trip.get("user_id") == user_id), -1)
         if trip_index >= 0:
@@ -218,6 +203,5 @@ def delete_trip(trip_id, user_id):
             return 1
         return 0
 
-# Alias for backwards compatibility
 document_to_dict = serialize_id
            

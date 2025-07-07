@@ -9,20 +9,16 @@ from dotenv import load_dotenv
 from database import TokenData, find_user_by_email, document_to_dict
 import logging
 
-# Setup logging
 logger = logging.getLogger(__name__)
 
-# Load environment variables
 load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Password hashing utilities
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# OAuth2 settings
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")  # Using "/auth/login" as token URL
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")  
 
 def verify_password(plain_password, hashed_password):
     try:
@@ -37,7 +33,6 @@ def get_password_hash(password):
 def get_user(email):
     try:
         user_data = find_user_by_email(email)
-        # No need for serialize_id, as document_to_dict already handles this
         return user_data
     except Exception as e:
         logger.error(f"Error getting user: {e}")

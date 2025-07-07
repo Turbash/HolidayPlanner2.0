@@ -42,27 +42,24 @@ export const fetchWeatherData = async (city, tripDays = 5) => {
     const response = await apiClient.get(`/weather/${encodeURIComponent(city)}`, {
       params: { days: tripDays }
     });
-    
-    if (response.data && response.data.list) {
-      return response.data.list.map(item => {
-        const date = new Date(item.dt * 1000);
-        return {
-          day: date.toLocaleDateString('en-US', { weekday: 'short' }),
-          date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          temp: Math.round(item.main.temp),
-          tempMin: Math.round(item.main.temp_min),
-          tempMax: Math.round(item.main.temp_max),
-          humidity: item.main.humidity,
-          description: item.weather[0].description,
-          icon: `https://openweathermap.org/img/wn/${item.weather[0].icon}@2x.png`
-        };
-      });
+
+    if (response.data && response.data.forecast && response.data.forecast.forecastday) {
+      return response.data.forecast.forecastday.map(day => ({
+        day: new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }),
+        date: new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        temp: Math.round(day.day.avgtemp_c),
+        tempMin: Math.round(day.day.mintemp_c),
+        tempMax: Math.round(day.day.maxtemp_c),
+        humidity: day.day.avghumidity,
+        description: day.day.condition.text,
+        icon: `https:${day.day.condition.icon}`
+      }));
     }
-    
+
     if (response.data.error) {
       throw new Error(response.data.error);
     }
-    
+
     throw new Error('Invalid weather data format');
   } catch (error) {
     console.error('Error fetching weather:', error);
@@ -70,56 +67,10 @@ export const fetchWeatherData = async (city, tripDays = 5) => {
   }
 };
 
-export const fetchSuggestData = async (location, budget, people, days, groupType) => {
-  try {
-    console.log(`Sending suggestion request with params:`, {
-      location, budget, people, days, group_type: groupType
-    });
-    
-    const response = await apiClient.post('/api/suggestions', {
-      location,
-      budget: parseFloat(budget),
-      people: parseInt(people),
-      days: parseInt(days),
-      group_type: groupType
-    });
-
-    let data = response.data;
-    console.log('Received suggestion data:', data);
-    if (typeof data === "string") {
-      data = JSON.parse(data);
-    }
-
-    if (data && typeof data.suggestions === "string") {
-      data = JSON.parse(data.suggestions);
-    } else if (data && data.suggestions) {
-      data = data.suggestions;
-    }
-
-    data.suggested_destinations = data.suggested_destinations || [];
-    data.itinerary_for_top_choice = data.itinerary_for_top_choice || [];
-    data.local_customs = data.local_customs || [];
-    data.packing_tips = data.packing_tips || [];
-    data.budget_considerations = data.budget_considerations || [];
-
-    localStorage.setItem('destinationSuggestions', JSON.stringify({
-      location,
-      budget,
-      days,
-      people,
-      groupType,
-      suggestions: data
-    }));
-
-    return data;
-  } catch (error) {
-    console.error('Error fetching suggestion data:', error);
-    return { error: "Failed to get destination suggestions" };
-  }
-};
-
 export const fetchPlanData = async (destination, budget, people, days, groupType) => {
   try {
+    localStorage.removeItem('holidayPlan');
+
     console.log(`Sending plan request with params:`, {
       destination, budget, people, days, group_type: groupType
     });
@@ -135,6 +86,7 @@ export const fetchPlanData = async (destination, budget, people, days, groupType
 
     let data = response.data;
     if (typeof data === "string") {
+      data = data.replace(/^[`\s]+|[`]+$/g, '');
       data = JSON.parse(data);
     }
 
@@ -150,9 +102,17 @@ export const fetchPlanData = async (destination, budget, people, days, groupType
     data.packing_tips = data.packing_tips || [];
     data.budget_breakdown = data.budget_breakdown || {};
 
+    let weather = null;
+    try {
+      weather = await fetchWeatherData(destination, days);
+    } catch (e) {
+      weather = { error: "Could not load weather data" };
+    }
+
     const localData = {
       formParams: { destination, budget, people, days, groupType },
-      planData: data
+      planData: data,
+      weather
     };
     localStorage.setItem('holidayPlan', JSON.stringify(localData));
 
@@ -160,6 +120,68 @@ export const fetchPlanData = async (destination, budget, people, days, groupType
   } catch (error) {
     console.error('Error fetching plan data:', error, error.response);
     return { error: "Failed to generate holiday plan" };
+  }
+};
+
+export const fetchSuggestData = async (location, budget, people, days, groupType) => {
+  try {
+    localStorage.removeItem('destinationSuggestions');
+
+    console.log(`Sending suggestion request with params:`, {
+      location, budget, people, days, group_type: groupType
+    });
+    
+    const response = await apiClient.post('/api/suggestions', {
+      location,
+      budget: parseFloat(budget),
+      people: parseInt(people),
+      days: parseInt(days),
+      group_type: groupType
+    });
+
+    let data = response.data;
+    console.log('Received suggestion data:', data);
+    if (typeof data === "string") {
+      data = data.replace(/^[`\s]+|[`]+$/g, '');
+      data = JSON.parse(data);
+    }
+
+    if (data && typeof data.suggestions === "string") {
+      data = JSON.parse(data.suggestions);
+    } else if (data && data.suggestions) {
+      data = data.suggestions;
+    }
+
+    data.suggested_destinations = data.suggested_destinations || [];
+    data.itinerary_for_top_choice = data.itinerary_for_top_choice || [];
+    data.local_customs = data.local_customs || [];
+    data.packing_tips = data.packing_tips || [];
+    data.budget_considerations = data.budget_considerations || [];
+
+    let weather = null;
+    const topDestination = data.suggested_destinations?.[0]?.destination;
+    if (topDestination) {
+      try {
+        weather = await fetchWeatherData(topDestination, days);
+      } catch (e) {
+        weather = { error: "Could not load weather data" };
+      }
+    }
+
+    localStorage.setItem('destinationSuggestions', JSON.stringify({
+      location,
+      budget,
+      days,
+      people,
+      groupType,
+      suggestions: data,
+      weather
+    }));
+
+    return data;
+  } catch (error) {
+    console.error('Error fetching suggestion data:', error);
+    return { error: "Failed to get destination suggestions" };
   }
 };
 

@@ -1,14 +1,15 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { apiClient } from "../../utils/api";
+import { fetchWeatherData, apiClient } from "../../utils/api";
 import SummaryTable from "../SummaryTable";
 import ResultSection from "./ResultSection";
 import ListItems from "./ListItems";
 import WeatherDisplay from "./WeatherDisplay";
 import ResultLayout from "./ResultLayout";
 import { toast } from "react-toastify";
+import LoadingState from "./LoadingState";
 
-const TripDisplay = ({ trip, weatherData }) => {
+const TripDisplay = ({ trip, weatherData: initialWeatherData }) => {
   const navigate = useNavigate();
   const { tripId } = useParams();
 
@@ -48,10 +49,15 @@ const TripDisplay = ({ trip, weatherData }) => {
       { label: "Group", value: `${formParams?.people || 1} people (${formParams?.groupType || 'friends'})` }
     ]
     : [
-      { label: "Destination", value: data.destination || data.location || (suggestData.suggested_destinations?.[0]?.destination ?? "Unknown") },
-      { label: "Days", value: data.days || suggestData.itinerary_for_top_choice?.length || data.itinerary?.length || 0 },
-      { label: "Budget", value: `$${data.budget || suggestData.budget || 0}` },
-      { label: "Group", value: `${data.people || suggestData.people || 1} people (${data.groupType || suggestData.groupType || 'friends'})` }
+      { label: "Starting Location", value: data.location },
+      { label: "Budget", value: `$${data.budget}` },
+      { label: "Trip Duration", value: `${data.days} days` },
+      { label: "Group Size", value: `${data.people} people` },
+      { label: "Group Type", value: data.groupType },
+      {
+        label: "Top Recommendation",
+        value: suggestData?.suggested_destinations?.[0]?.destination || "No recommendations found"
+      }
     ];
 
   const handleDelete = async () => {
@@ -64,6 +70,32 @@ const TripDisplay = ({ trip, weatherData }) => {
       toast.error("Failed to delete trip. Please try again.");
     }
   };
+
+  const [weatherData, setWeatherData] = useState(
+    initialWeatherData && !initialWeatherData.error ? initialWeatherData : null
+  );
+  const [weatherLoading, setWeatherLoading] = useState(false);
+
+  let weatherLocation = isPlan
+    ? formParams?.destination
+    : data.destination || data.location || suggestData.suggested_destinations?.[0]?.destination;
+  let weatherDays = isPlan
+    ? parseInt(formParams?.days) || planData?.itinerary?.length || 1
+    : parseInt(data.days || suggestData.days) || 5;
+
+  useEffect(() => {
+    let cancelled = false;
+    if ((weatherData === null) && weatherLocation) {
+      setWeatherLoading(true);
+      fetchWeatherData(weatherLocation, weatherDays).then((w) => {
+        if (!cancelled) setWeatherData(w);
+        setWeatherLoading(false);
+      });
+    }
+    return () => { cancelled = true; };
+  }, [weatherLocation, weatherDays]);
+
+  const shouldShowWeatherLoading = weatherLoading || (weatherData === null && weatherLocation);
 
   return (
     <ResultLayout
@@ -90,20 +122,18 @@ const TripDisplay = ({ trip, weatherData }) => {
 
       <SummaryTable summaryRows={summaryRows} title="Trip Summary" />
 
-      <WeatherDisplay
-        weatherData={weatherData}
-        location={
-          isPlan
-            ? formParams?.destination
-            : data.destination || data.location || suggestData.suggested_destinations?.[0]?.destination
-        }
-        color="sky"
-        tripDays={
-          isPlan
-            ? parseInt(formParams?.days) || planData?.itinerary?.length || 1
-            : parseInt(data.days || suggestData.days) || 5
-        }
-      />
+      {shouldShowWeatherLoading ? (
+        <div className="mb-4">
+          <LoadingState message="Loading weather forecast..." />
+        </div>
+      ) : (
+        <WeatherDisplay
+          weatherData={weatherData}
+          location={weatherLocation}
+          color="sky"
+          tripDays={weatherDays}
+        />
+      )}
 
       {isPlan && planData && (
         <>
@@ -275,7 +305,7 @@ const TripDisplay = ({ trip, weatherData }) => {
           )}
         </>
       )}
-    
+
     </ResultLayout >
   );
 };

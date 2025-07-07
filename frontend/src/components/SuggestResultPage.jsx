@@ -33,7 +33,6 @@ const SuggestResultPage = () => {
       }
       const parsedData = JSON.parse(savedData);
 
-      // suggestions are now under .suggestions or .data
       let suggestions = parsedData.suggestions;
       if (typeof suggestions === "string") {
         try {
@@ -50,7 +49,6 @@ const SuggestResultPage = () => {
         setSuggestData(parsedData.data || {});
       }
 
-      // Set formParams from parsedData (for your structure)
       setFormParams({
         location: parsedData.location || "",
         budget: parsedData.budget || "",
@@ -68,17 +66,14 @@ const SuggestResultPage = () => {
     }
   }, []);
 
-  // Function to save the suggestions
   const handleSaveTrip = async () => {
     try {
-      // Check if we're logged in
       const token = localStorage.getItem('auth_token');
       if (!token) {
         navigate('/login', { state: { from: '/suggest/result' } });
         return;
       }
 
-      // Get the complete suggestion data from localStorage
       const savedData = localStorage.getItem('destinationSuggestions');
       if (!savedData) {
         setError("No suggestion data found to save.");
@@ -86,7 +81,6 @@ const SuggestResultPage = () => {
       }
       const suggestToSave = JSON.parse(savedData);
       
-      // Save to database using the new API endpoint
       await saveTripToDatabase(suggestToSave, 'suggest');
       setSaveSuccess(true);
       toast.success("Suggestions saved successfully!");
@@ -113,10 +107,8 @@ const SuggestResultPage = () => {
     />;
   }
 
-  // Use suggestData as the canonical suggestions object
   const suggestions = suggestData;
 
-  // Create summary rows for the SummaryTable component
   const summaryRows = [
     { label: "Starting Location", value: formParams.location },
     { label: "Budget", value: `$${formParams.budget}` },
@@ -131,7 +123,6 @@ const SuggestResultPage = () => {
 
   const summaryComponent = <SummaryTable summaryRows={summaryRows} title="Trip Details" />;
 
-  // Get the top destination for weather
   const topDestination = suggestions?.suggested_destinations?.[0]?.destination || "destination";
 
   return (
@@ -163,7 +154,6 @@ const SuggestResultPage = () => {
         </div>
       )}
       
-      {/* Weather Display - Pass the trip days */}
       <WeatherDisplay 
         weatherData={weatherData} 
         location={topDestination} 
@@ -171,7 +161,6 @@ const SuggestResultPage = () => {
         tripDays={parseInt(formParams.days) || 5}
       />
       
-      {/* Suggested Destinations */}
       <ResultSection 
         title="Suggested Destinations" 
         color="teal"
@@ -210,7 +199,6 @@ const SuggestResultPage = () => {
         </div>
       </ResultSection>
       
-      {/* Itinerary */}
       <ResultSection 
         title={`Itinerary for ${suggestions?.suggested_destinations?.[0]?.destination || "Top Choice"}`}
         color="blue"
@@ -234,7 +222,6 @@ const SuggestResultPage = () => {
         </div>
       </ResultSection>
       
-      {/* Budget Considerations */}
       <ResultSection 
         title="Budget Considerations"
         color="amber"
@@ -244,7 +231,6 @@ const SuggestResultPage = () => {
         <ListItems items={suggestions.budget_considerations} />
       </ResultSection>
       
-      {/* Local Customs */}
       <ResultSection 
         title="Local Customs"
         color="indigo"
@@ -254,7 +240,6 @@ const SuggestResultPage = () => {
         <ListItems items={suggestions.local_customs} />
       </ResultSection>
       
-      {/* Packing Tips */}
       <ResultSection 
         title="Packing Tips"
         color="green"

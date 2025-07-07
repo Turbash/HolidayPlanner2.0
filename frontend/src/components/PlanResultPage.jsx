@@ -12,19 +12,6 @@ import { saveTripToDatabase } from "../utils/api";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-
-axios.interceptors.response.use(
-  response => response,
-  error => {
-    if (error.response && error.response.status === 401) {
-      localStorage.removeItem('auth_token');
-      window.location.href = '/login';
-    }
-    return Promise.reject(error);
-  }
-);
-
 const PlanResultPage = () => {
   const [planData, setPlanData] = useState(null);
   const [formParams, setFormParams] = useState({});
