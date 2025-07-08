@@ -168,46 +168,6 @@ const SuggestResultPage = () => {
 
       <PlacesDisplay places={places} color="amber" />
 
-      <ResultSection
-        title="Nearby Restaurants & Hotels"
-        color="amber"
-        isEmpty={!places?.restaurants?.length && !places?.hotels?.length}
-        emptyMessage={"No restaurants or hotels found."}
-      >
-        {places && (
-          <div>
-            {places.restaurants?.length > 0 && (
-              <div className="mb-2">
-                <div className="font-semibold text-amber-700 mb-1">Restaurants:</div>
-                <ul className="list-disc ml-6">
-                  {places.restaurants.map((r, i) => (
-                    <li key={i}>
-                      <span className="font-medium">{r.name}</span>
-                      {r.rating && <> ({r.rating}★)</>}
-                      {r.address && <> - <span className="text-gray-600">{r.address}</span></>}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {places.hotels?.length > 0 && (
-              <div>
-                <div className="font-semibold text-amber-700 mb-1">Hotels:</div>
-                <ul className="list-disc ml-6">
-                  {places.hotels.map((h, i) => (
-                    <li key={i}>
-                      <span className="font-medium">{h.name}</span>
-                      {h.rating && <> ({h.rating}★)</>}
-                      {h.address && <> - <span className="text-gray-600">{h.address}</span></>}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-      </ResultSection>
-      
       <ResultSection 
         title="Suggested Destinations" 
         color="teal"
