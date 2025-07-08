@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { fetchWeatherData, apiClient } from "../../utils/api";
+import { fetchWeatherData, fetchPlacesData, apiClient } from "../../utils/api";
 import SummaryTable from "../SummaryTable";
 import ResultSection from "./ResultSection";
 import ListItems from "./ListItems";
@@ -76,6 +76,10 @@ const TripDisplay = ({ trip, weatherData: initialWeatherData }) => {
   );
   const [weatherLoading, setWeatherLoading] = useState(false);
 
+  const [places, setPlaces] = useState(null);
+  const [placesLoading, setPlacesLoading] = useState(false);
+  const [placesError, setPlacesError] = useState(null);
+
   let weatherLocation = isPlan
     ? formParams?.destination
     : data.destination || data.location || suggestData.suggested_destinations?.[0]?.destination;
@@ -94,6 +98,21 @@ const TripDisplay = ({ trip, weatherData: initialWeatherData }) => {
     }
     return () => { cancelled = true; };
   }, [weatherLocation, weatherDays]);
+
+  useEffect(() => {
+    if (!weatherLocation) return;
+    setPlacesLoading(true);
+    setPlacesError(null);
+    fetchPlacesData(weatherLocation, { section: "all", limit: 6 })
+      .then((data) => {
+        setPlaces(data);
+        setPlacesLoading(false);
+      })
+      .catch((err) => {
+        setPlacesError("Could not load restaurants/hotels.");
+        setPlacesLoading(false);
+      });
+  }, [weatherLocation]);
 
   const shouldShowWeatherLoading = weatherLoading || (weatherData === null && weatherLocation);
 
@@ -134,6 +153,47 @@ const TripDisplay = ({ trip, weatherData: initialWeatherData }) => {
           tripDays={weatherDays}
         />
       )}
+
+      <ResultSection
+        title="Nearby Restaurants & Hotels"
+        color="amber"
+        isEmpty={placesLoading || (!places?.restaurants?.length && !places?.hotels?.length)}
+        emptyMessage={placesLoading ? "Loading..." : "No restaurants or hotels found."}
+      >
+        {placesError && <div className="text-red-600">{placesError}</div>}
+        {places && (
+          <div>
+            {places.restaurants?.length > 0 && (
+              <div className="mb-2">
+                <div className="font-semibold text-amber-700 mb-1">Restaurants:</div>
+                <ul className="list-disc ml-6">
+                  {places.restaurants.map((r, i) => (
+                    <li key={i}>
+                      <span className="font-medium">{r.name}</span>
+                      {r.rating && <> ({r.rating}★)</>}
+                      {r.address && <> - <span className="text-gray-600">{r.address}</span></>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {places.hotels?.length > 0 && (
+              <div>
+                <div className="font-semibold text-amber-700 mb-1">Hotels:</div>
+                <ul className="list-disc ml-6">
+                  {places.hotels.map((h, i) => (
+                    <li key={i}>
+                      <span className="font-medium">{h.name}</span>
+                      {h.rating && <> ({h.rating}★)</>}
+                      {h.address && <> - <span className="text-gray-600">{h.address}</span></>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </ResultSection>
 
       {isPlan && planData && (
         <>

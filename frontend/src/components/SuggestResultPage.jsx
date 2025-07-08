@@ -21,6 +21,9 @@ const SuggestResultPage = () => {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [formParams, setFormParams] = useState({});
   const [suggestData, setSuggestData] = useState(null);
+  const [places, setPlaces] = useState(null);
+  const [placesLoading, setPlacesLoading] = useState(false);
+  const [placesError, setPlacesError] = useState(null);
   const navigate = useNavigate();
   
   useEffect(() => {
@@ -58,6 +61,7 @@ const SuggestResultPage = () => {
       });
 
       setWeatherData(parsedData.weather || null);
+      setPlaces(parsedData.places || null); // 
       setLoading(false);
     } catch (err) {
       console.error("Error loading suggestion data:", err);
@@ -160,6 +164,46 @@ const SuggestResultPage = () => {
         color="sky"
         tripDays={parseInt(formParams.days) || 5}
       />
+      
+      <ResultSection
+        title="Nearby Restaurants & Hotels"
+        color="amber"
+        isEmpty={!places?.restaurants?.length && !places?.hotels?.length}
+        emptyMessage={"No restaurants or hotels found."}
+      >
+        {places && (
+          <div>
+            {places.restaurants?.length > 0 && (
+              <div className="mb-2">
+                <div className="font-semibold text-amber-700 mb-1">Restaurants:</div>
+                <ul className="list-disc ml-6">
+                  {places.restaurants.map((r, i) => (
+                    <li key={i}>
+                      <span className="font-medium">{r.name}</span>
+                      {r.rating && <> ({r.rating}★)</>}
+                      {r.address && <> - <span className="text-gray-600">{r.address}</span></>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {places.hotels?.length > 0 && (
+              <div>
+                <div className="font-semibold text-amber-700 mb-1">Hotels:</div>
+                <ul className="list-disc ml-6">
+                  {places.hotels.map((h, i) => (
+                    <li key={i}>
+                      <span className="font-medium">{h.name}</span>
+                      {h.rating && <> ({h.rating}★)</>}
+                      {h.address && <> - <span className="text-gray-600">{h.address}</span></>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </ResultSection>
       
       <ResultSection 
         title="Suggested Destinations" 

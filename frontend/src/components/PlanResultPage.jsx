@@ -8,7 +8,7 @@ import ResultLayout from "./shared/ResultLayout";
 import ResultSection from "./shared/ResultSection";
 import ListItems from "./shared/ListItems";
 import WeatherDisplay from "./shared/WeatherDisplay";
-import { saveTripToDatabase } from "../utils/api";
+import { saveTripToDatabase, fetchPlacesData } from "../utils/api";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -19,6 +19,9 @@ const PlanResultPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [places, setPlaces] = useState(null);
+  const [placesLoading, setPlacesLoading] = useState(false);
+  const [placesError, setPlacesError] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -49,6 +52,21 @@ const PlanResultPage = () => {
       setLoading(false);
     }
   }, []);
+
+  useEffect(() => {
+    if (!formParams.destination) return;
+    setPlacesLoading(true);
+    setPlacesError(null);
+    fetchPlacesData(formParams.destination, { section: "all", limit: 6 })
+      .then((data) => {
+        setPlaces(data);
+        setPlacesLoading(false);
+      })
+      .catch((err) => {
+        setPlacesError("Could not load restaurants/hotels.");
+        setPlacesLoading(false);
+      });
+  }, [formParams.destination]);
 
   const handleSaveTrip = async () => {
     try {
@@ -88,7 +106,7 @@ const PlanResultPage = () => {
       returnPath="/plan" 
     />;
   }
-  
+
   const summaryRows = [
     { label: "Destination", value: formParams.destination || "Unknown" },
     { label: "Days", value: planData.itinerary?.length || 0 },
@@ -129,6 +147,47 @@ const PlanResultPage = () => {
         color="sky"
         tripDays={parseInt(formParams.days) || 5}
       />
+
+      <ResultSection
+        title="Nearby Restaurants & Hotels"
+        color="amber"
+        isEmpty={placesLoading || (!places?.restaurants?.length && !places?.hotels?.length)}
+        emptyMessage={placesLoading ? "Loading..." : "No restaurants or hotels found."}
+      >
+        {placesError && <div className="text-red-600">{placesError}</div>}
+        {places && (
+          <div>
+            {places.restaurants?.length > 0 && (
+              <div className="mb-2">
+                <div className="font-semibold text-amber-700 mb-1">Restaurants:</div>
+                <ul className="list-disc ml-6">
+                  {places.restaurants.map((r, i) => (
+                    <li key={i}>
+                      <span className="font-medium">{r.name}</span>
+                      {r.rating && <> ({r.rating}★)</>}
+                      {r.address && <> - <span className="text-gray-600">{r.address}</span></>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {places.hotels?.length > 0 && (
+              <div>
+                <div className="font-semibold text-amber-700 mb-1">Hotels:</div>
+                <ul className="list-disc ml-6">
+                  {places.hotels.map((h, i) => (
+                    <li key={i}>
+                      <span className="font-medium">{h.name}</span>
+                      {h.rating && <> ({h.rating}★)</>}
+                      {h.address && <> - <span className="text-gray-600">{h.address}</span></>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </ResultSection>
       
       {planData.budget_breakdown && (
         <ResultSection title="Budget Breakdown" color="blue">

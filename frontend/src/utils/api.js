@@ -109,10 +109,18 @@ export const fetchPlanData = async (destination, budget, people, days, groupType
       weather = { error: "Could not load weather data" };
     }
 
+    let places = null;
+    try {
+      places = await fetchPlacesData(destination, { section: "all", limit: 4 });
+    } catch (e) {
+      places = { error: "Could not load places data" };
+    }
+
     const localData = {
       formParams: { destination, budget, people, days, groupType },
       planData: data,
-      weather
+      weather,
+      places
     };
     localStorage.setItem('holidayPlan', JSON.stringify(localData));
 
@@ -159,12 +167,18 @@ export const fetchSuggestData = async (location, budget, people, days, groupType
     data.budget_considerations = data.budget_considerations || [];
 
     let weather = null;
+    let places = null;
     const topDestination = data.suggested_destinations?.[0]?.destination;
     if (topDestination) {
       try {
         weather = await fetchWeatherData(topDestination, days);
       } catch (e) {
         weather = { error: "Could not load weather data" };
+      }
+      try {
+        places = await fetchPlacesData(topDestination, { section: "all", limit: 4 });
+      } catch (e) {
+        places = { error: "Could not load places data" };
       }
     }
 
@@ -175,7 +189,8 @@ export const fetchSuggestData = async (location, budget, people, days, groupType
       people,
       groupType,
       suggestions: data,
-      weather
+      weather,
+      places
     }));
 
     return data;
@@ -196,6 +211,25 @@ export const saveTripToDatabase = async (tripData, tripType) => {
   } catch (error) {
     console.error('Error saving trip to database:', error);
     throw error;
+  }
+};
+
+export const fetchPlacesData = async (city, options = {}) => {
+  try {
+    let params = { ...options };
+    if (params.section === "all") {
+      params.limit = 4;
+    }
+    const response = await apiClient.get(`/places/${encodeURIComponent(city)}`, {
+      params
+    });
+    if (response.data.error) {
+      throw new Error(response.data.error);
+    }
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching places data:", error);
+    return { error: error.message || "Could not load places data" };
   }
 };
 

@@ -34,6 +34,7 @@ load_dotenv()
 HF_API_TOKEN = os.getenv("HF_API_TOKEN")
 MODEL_ID = os.getenv("MODEL_ID")
 API_KEY = os.getenv("WEATHERAPI_KEY")
+FOURSQUARE_API_KEY = os.getenv("FOURSQUARE_API_KEY")
 
 app = FastAPI()
 
@@ -343,3 +344,68 @@ async def debug_ping():
 @app.post("/debug/echo")
 async def debug_echo(data: dict):
     return {"status": "ok", "received": data}
+
+@app.get("/places/{city}")
+async def get_places(city: str, limit: int = 8, section: str = "food"):
+    """
+    Fetch suggested restaurants and hotels for a city using Foursquare Places API (new endpoint).
+    section: "food" for restaurants, "hotel" for hotels, or "all" for both.
+    """
+    try:
+        if not FOURSQUARE_API_KEY:
+            return {"error": "Foursquare API key not set"}
+        url = "https://places-api.foursquare.com/places/search"
+        headers = {
+            "Authorization": f"Bearer {FOURSQUARE_API_KEY}",
+            "X-Places-Api-Version": "2025-06-17",
+            "Accept": "application/json"
+        }
+        results = {}
+
+        RESTAURANT_CAT = "4d4b7105d754a06374d81259"
+        HOTEL_CAT = "4bf58dd8d48988d1fa931735"
+
+        def fetch_section_cat(cat_id):
+            params = {
+                "near": city,
+                "limit": 4,
+                "sort": "RELEVANCE",
+                "fsq_category_ids": cat_id
+            }
+            resp = requests.get(url, headers=headers, params=params)
+            if resp.status_code != 200:
+                logger.error(f"Foursquare API error: {resp.status_code} {resp.text}")
+                return []
+            data = resp.json()
+            return [
+                {
+                    "name": place.get("name"),
+                    "address": place.get("location", {}).get("formatted_address", ""),
+                    "categories": [cat.get("name") for cat in place.get("categories", [])],
+                    "rating": place.get("rating"),
+                    "fsq_id": place.get("fsq_place_id"),
+                    "website": place.get("website"),
+                }
+                for place in data.get("results", [])
+            ]
+
+        if section == "all":
+            results["restaurants"] = fetch_section_cat(RESTAURANT_CAT)
+            results["hotels"] = fetch_section_cat(HOTEL_CAT)
+        elif section == "hotel":
+            results["hotels"] = fetch_section_cat(HOTEL_CAT)
+        else:
+            results["restaurants"] = fetch_section_cat(RESTAURANT_CAT)
+
+        if (
+            (section == "all" and not results["restaurants"] and not results["hotels"])
+            or (section == "food" and not results["restaurants"])
+            or (section == "hotel" and not results["hotels"])
+        ):
+            logger.warning(f"No Foursquare results for city={city}, section={section}")
+
+        return results
+    except Exception as e:
+        logger.error(f"Exception in /places/{city}: {e}")
+        return {"error": str(e)}
+                    
