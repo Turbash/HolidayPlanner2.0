@@ -9,6 +9,7 @@ import ResultLayout from "./shared/ResultLayout";
 import ResultSection from "./shared/ResultSection";
 import ListItems from "./shared/ListItems";
 import WeatherDisplay from "./shared/WeatherDisplay";
+import PlacesDisplay from "./shared/PlacesDisplay";
 import { saveTripToDatabase } from "../utils/api";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
@@ -164,7 +165,9 @@ const SuggestResultPage = () => {
         color="sky"
         tripDays={parseInt(formParams.days) || 5}
       />
-      
+
+      <PlacesDisplay places={places} color="amber" />
+
       <ResultSection
         title="Nearby Restaurants & Hotels"
         color="amber"

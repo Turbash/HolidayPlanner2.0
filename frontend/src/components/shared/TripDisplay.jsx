@@ -8,6 +8,7 @@ import WeatherDisplay from "./WeatherDisplay";
 import ResultLayout from "./ResultLayout";
 import { toast } from "react-toastify";
 import LoadingState from "./LoadingState";
+import PlacesDisplay from "./PlacesDisplay";
 
 const TripDisplay = ({ trip, weatherData: initialWeatherData }) => {
   const navigate = useNavigate();
@@ -82,7 +83,7 @@ const TripDisplay = ({ trip, weatherData: initialWeatherData }) => {
 
   let weatherLocation = isPlan
     ? formParams?.destination
-    : data.destination || data.location || suggestData.suggested_destinations?.[0]?.destination;
+    : suggestData.suggested_destinations?.[0]?.destination;
   let weatherDays = isPlan
     ? parseInt(formParams?.days) || planData?.itinerary?.length || 1
     : parseInt(data.days || suggestData.days) || 5;
@@ -115,6 +116,7 @@ const TripDisplay = ({ trip, weatherData: initialWeatherData }) => {
   }, [weatherLocation]);
 
   const shouldShowWeatherLoading = weatherLoading || (weatherData === null && weatherLocation);
+  const shouldShowPlacesLoading = placesLoading || (places === null && weatherLocation);
 
   return (
     <ResultLayout
@@ -154,46 +156,13 @@ const TripDisplay = ({ trip, weatherData: initialWeatherData }) => {
         />
       )}
 
-      <ResultSection
-        title="Nearby Restaurants & Hotels"
-        color="amber"
-        isEmpty={placesLoading || (!places?.restaurants?.length && !places?.hotels?.length)}
-        emptyMessage={placesLoading ? "Loading..." : "No restaurants or hotels found."}
-      >
-        {placesError && <div className="text-red-600">{placesError}</div>}
-        {places && (
-          <div>
-            {places.restaurants?.length > 0 && (
-              <div className="mb-2">
-                <div className="font-semibold text-amber-700 mb-1">Restaurants:</div>
-                <ul className="list-disc ml-6">
-                  {places.restaurants.map((r, i) => (
-                    <li key={i}>
-                      <span className="font-medium">{r.name}</span>
-                      {r.rating && <> ({r.rating}★)</>}
-                      {r.address && <> - <span className="text-gray-600">{r.address}</span></>}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {places.hotels?.length > 0 && (
-              <div>
-                <div className="font-semibold text-amber-700 mb-1">Hotels:</div>
-                <ul className="list-disc ml-6">
-                  {places.hotels.map((h, i) => (
-                    <li key={i}>
-                      <span className="font-medium">{h.name}</span>
-                      {h.rating && <> ({h.rating}★)</>}
-                      {h.address && <> - <span className="text-gray-600">{h.address}</span></>}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        )}
-      </ResultSection>
+      {shouldShowPlacesLoading ? (
+        <div className="mb-4">
+          <LoadingState message="Loading restaurants and hotels..." />
+        </div>
+      ) : (
+        <PlacesDisplay places={places} color="amber" />
+      )}
 
       {isPlan && planData && (
         <>

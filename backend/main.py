@@ -365,6 +365,12 @@ async def get_places(city: str, limit: int = 8, section: str = "food"):
         RESTAURANT_CAT = "4d4b7105d754a06374d81259"
         HOTEL_CAT = "4bf58dd8d48988d1fa931735"
 
+        def get_icon_url(categories):
+            if categories and isinstance(categories, list) and categories[0].get("icon"):
+                icon = categories[0]["icon"]
+                return f"{icon['prefix']}64{icon['suffix']}"
+            return None
+
         def fetch_section_cat(cat_id):
             params = {
                 "near": city,
@@ -382,6 +388,7 @@ async def get_places(city: str, limit: int = 8, section: str = "food"):
                     "name": place.get("name"),
                     "address": place.get("location", {}).get("formatted_address", ""),
                     "categories": [cat.get("name") for cat in place.get("categories", [])],
+                    "icon": get_icon_url(place.get("categories", [])),
                     "rating": place.get("rating"),
                     "fsq_id": place.get("fsq_place_id"),
                     "website": place.get("website"),
@@ -408,4 +415,3 @@ async def get_places(city: str, limit: int = 8, section: str = "food"):
     except Exception as e:
         logger.error(f"Exception in /places/{city}: {e}")
         return {"error": str(e)}
-                    
