@@ -12,8 +12,6 @@ import WeatherDisplay from "./shared/WeatherDisplay";
 import PlacesDisplay from "./shared/PlacesDisplay";
 import { saveTripToDatabase } from "../utils/api";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
-
 const SuggestResultPage = () => {
   const [data, setData] = useState(null);
   const [weatherData, setWeatherData] = useState(null);

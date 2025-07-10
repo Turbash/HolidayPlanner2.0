@@ -7,7 +7,7 @@ A full-stack application for planning holidays and getting destination suggestio
 ### Prerequisites
 
 - Python 3.8+
-- Node.js 14+
+- Node.js 16+
 - MongoDB (optional, the app will use in-memory storage if MongoDB is not available)
 
 ### Backend Setup
@@ -37,13 +37,14 @@ A full-stack application for planning holidays and getting destination suggestio
    ```
    HF_API_TOKEN=your_huggingface_token
    MODEL_ID=your_model_id
-   OPENWEATHERMAP_API_KEY=your_openweathermap_key
+   WEATHERAPI_KEY=your_weatherapi_key
+   FOURSQUARE_API_KEY=your_foursquare_key
    MONGODB_URI=mongodb://localhost:27017
    DB_NAME=holiday_planner
    SECRET_KEY=your_secret_key_here
    ```
 
-6. Start the backend server:
+6. Start the backend server (for production, remove `--reload` and use multiple workers):
    ```
    uvicorn main:app --reload
    ```
@@ -60,12 +61,18 @@ A full-stack application for planning holidays and getting destination suggestio
    npm install
    ```
 
-3. Start the development server:
+3. Create a `.env` file in the frontend directory:
+   ```
+   VITE_BACKEND_URL=http://localhost:8000
+   ```
+   Set this to your deployed backend URL in production.
+
+4. Start the development server:
    ```
    npm run dev
    ```
 
-4. Access the application at http://localhost:5173
+5. Access the application at http://localhost:5173
 
 ## MongoDB Setup (Optional)
 
@@ -90,8 +97,22 @@ To set up MongoDB:
 
 ## Features
 
-- User authentication
+- User authentication (JWT)
 - Holiday planning with budget and itinerary
 - Destination suggestions based on preferences
 - Weather forecasts for destinations
 - Save and manage trip plans
+- Dashboard for users
+- Responsive UI with Tailwind CSS
+
+## Deployment Notes
+
+- For production, use a production ASGI server (e.g., `uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4`)
+- Set all environment variables in your deployment environment (do not commit secrets)
+- Restrict CORS origins in `main.py` to your frontend domain(s)
+- Serve the frontend `dist/` folder with a static host (Vercel, Netlify, etc.)
+- Ensure `VITE_BACKEND_URL` in the frontend `.env` points to your deployed backend
+
+## License
+
+MIT

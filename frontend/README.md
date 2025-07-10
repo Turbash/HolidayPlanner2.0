@@ -1,12 +1,80 @@
-# React + Vite
+# Holiday Planner 2.0 Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern React + Vite frontend for the Holiday Planner 2.0 project.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Plan detailed holidays and get destination suggestions
+- User authentication (JWT-based)
+- Dashboard for managing saved trips
+- Weather and places integration (WeatherAPI, Foursquare)
+- Responsive, modern UI with Tailwind CSS
+- Toast notifications and loading states
 
-## Expanding the ESLint configuration
+## Getting Started
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### Prerequisites
+
+- Node.js (v16+ recommended)
+- Backend API running (see backend README)
+
+### Setup
+
+1. **Install dependencies:**
+   ```sh
+   npm install
+   ```
+
+2. **Configure environment variables:**
+
+   Create a `.env` file in this directory:
+
+   ```
+   VITE_BACKEND_URL=http://localhost:8000
+   ```
+
+   Set this to your deployed backend URL in production.
+
+3. **Run the development server:**
+   ```sh
+   npm run dev
+   ```
+
+   The app will be available at [http://localhost:5173](http://localhost:5173) by default.
+
+### Build for Production
+
+```sh
+npm run build
+```
+
+### Lint
+
+```sh
+npm run lint
+```
+
+## Project Structure
+
+- `src/components/` - React components (Dashboard, TripDisplay, etc.)
+- `src/contexts/` - React context providers (Auth)
+- `src/utils/` - API utilities and helpers
+- `src/App.jsx` - Main app routes and layout
+
+## Environment Variables
+
+| Variable           | Description                         |
+|--------------------|-------------------------------------|
+| VITE_BACKEND_URL   | Backend API base URL                |
+
+## Deployment
+
+- Build the frontend with `npm run build`.
+- Deploy the `dist/` folder to your static hosting (Vercel, Netlify, etc.).
+- Ensure `VITE_BACKEND_URL` points to your deployed backend.
+
+## License
+
+MIT
+
+---

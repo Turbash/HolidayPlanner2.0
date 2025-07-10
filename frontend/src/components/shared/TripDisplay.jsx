@@ -9,6 +9,7 @@ import ResultLayout from "./ResultLayout";
 import { toast } from "react-toastify";
 import LoadingState from "./LoadingState";
 import PlacesDisplay from "./PlacesDisplay";
+import DeleteTripModal from "./DeleteTripModal";
 
 const TripDisplay = ({ trip, weatherData: initialWeatherData }) => {
   const navigate = useNavigate();
@@ -61,8 +62,9 @@ const TripDisplay = ({ trip, weatherData: initialWeatherData }) => {
       }
     ];
 
+  const [modalOpen, setModalOpen] = useState(false);
+
   const handleDelete = async () => {
-    if (!window.confirm("Are you sure you want to delete this trip?")) return;
     try {
       await apiClient.delete(`/api/trips/${tripId}`);
       toast.success("Trip deleted successfully!");
@@ -132,11 +134,16 @@ const TripDisplay = ({ trip, weatherData: initialWeatherData }) => {
             Dashboard
           </Link>
           <button
-            onClick={handleDelete}
+            onClick={() => setModalOpen(true)}
             className="px-4 py-2 bg-green-600 text-white cursor-pointer rounded-lg hover:bg-green-700 transition"
           >
             Delete Trip
           </button>
+          <DeleteTripModal
+            open={modalOpen}
+            onClose={() => setModalOpen(false)}
+            onConfirm={handleDelete}
+          />
         </div>
       }
     >

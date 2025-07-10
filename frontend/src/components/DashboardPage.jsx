@@ -3,35 +3,33 @@ import { Link } from "react-router-dom";
 import axios from 'axios';
 import LoadingState from "./shared/LoadingState";
 import { toast } from "react-toastify";
+import DeleteTripModal from "./shared/DeleteTripModal";
 
-const BACKEND_URL = 'http://localhost:8000';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
 
 const DashboardPage = () => {
   const [trips, setTrips] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [tripToDelete, setTripToDelete] = useState(null);
 
   useEffect(() => {
     const fetchUserAndTrips = async () => {
       try {
-        // Get auth token
         const token = localStorage.getItem('auth_token');
         if (!token) {
           setLoading(false);
           return;
         }
 
-        // Set authorization header
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         
-        // Fetch user profile
         const userResponse = await axios.get(`${BACKEND_URL}/auth/me`);
         setUser(userResponse.data);
         
-        // Fetch user trips
         const tripsResponse = await axios.get(`${BACKEND_URL}/api/trips`);
-        // Order trips by most recent first
         const tripsSorted = (tripsResponse.data || []).slice().sort((a, b) => {
           const dateA = new Date(a.created_at);
           const dateB = new Date(b.created_at);
@@ -56,9 +54,6 @@ const DashboardPage = () => {
   };
 
   const handleDeleteTrip = async (tripId) => {
-    if (!window.confirm('Are you sure you want to delete this trip?')) {
-      return;
-    }
     try {
       await axios.delete(`${BACKEND_URL}/api/trips/${tripId}`);
       setTrips(trips.filter(trip => trip.id !== tripId));
@@ -132,7 +127,6 @@ const DashboardPage = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {trips.map(trip => {
-                  // Unwrap trip data for display
                   let data = trip.data || {};
                   if (typeof data === "string") {
                     try {
@@ -141,7 +135,6 @@ const DashboardPage = () => {
                       data = {};
                     }
                   }
-                  // For plan trips
                   let formParams = data.formParams || {};
                   let planData = data.planData || {};
                   if (typeof planData === "string") {
@@ -197,7 +190,10 @@ const DashboardPage = () => {
                             View Details
                           </Link>
                           <button
-                            onClick={() => handleDeleteTrip(trip.id)}
+                            onClick={() => {
+                              setTripToDelete(trip.id);
+                              setModalOpen(true);
+                            }}
                             className="text-red-500 hover:text-red-700 text-sm cursor-pointer"
                           >
                             Delete
@@ -236,6 +232,14 @@ const DashboardPage = () => {
           </div>
         </div>
       </div>
+
+      <DeleteTripModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onConfirm={() => {
+          if (tripToDelete) handleDeleteTrip(tripToDelete);
+        }}
+      />
     </div>
   );
 };
