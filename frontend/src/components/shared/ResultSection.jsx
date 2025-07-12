@@ -41,17 +41,17 @@ const ResultSection = ({
   const classes = colorClasses[color] || colorClasses.teal;
   
   return (
-    <section className="mb-6">
-      <h2 className={`text-xl font-semibold ${classes.title} mb-2`}>
+    <section className="mb-8 lg:mb-10">
+      <h2 className={`text-xl sm:text-2xl font-bold ${classes.title} mb-4 lg:mb-6`}>
         {title}
       </h2>
       
       {isEmpty ? (
-        <div className="bg-red-50 p-4 rounded-lg text-center">
-          <p className="text-red-600">{emptyMessage}</p>
+        <div className="bg-red-50 border border-red-200 p-6 lg:p-8 rounded-2xl text-center">
+          <p className="text-red-600 text-lg">{emptyMessage}</p>
         </div>
       ) : (
-        <div className={`${classes.bg} rounded-lg p-4 shadow`}>
+        <div className={`${classes.bg} rounded-2xl p-6 lg:p-8 shadow-lg border border-white/20`}>
           {children}
         </div>
       )}

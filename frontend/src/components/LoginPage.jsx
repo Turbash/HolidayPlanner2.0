@@ -74,18 +74,26 @@ const LoginPage = () => {
   }
 
   return (
-    <section className="w-full min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-teal-100 via-sky-100 to-green-100">
+    <section className="w-full min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-teal-50 via-sky-50 to-green-50 px-4 sm:px-6 lg:px-8">
       <BackToHomeLink />
       <form
         onSubmit={handleSubmit}
-        className="bg-white/80 rounded-2xl shadow-xl px-8 py-10 w-full max-w-md flex flex-col gap-6 border border-teal-100"
+        className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl px-8 sm:px-10 py-12 w-full max-w-lg flex flex-col gap-6 border border-white/30"
       >
-        <h2 className="text-2xl font-bold text-teal-700 mb-2 text-center">
-          Log In to Holiday Planner
-        </h2>
+        <div className="text-center mb-4">
+          <div className="w-16 h-16 bg-gradient-to-br from-teal-400 to-green-400 rounded-2xl flex items-center justify-center mx-auto mb-6">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </div>
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-teal-600 to-green-600 bg-clip-text text-transparent">
+            Welcome Back
+          </h2>
+          <p className="text-gray-600 mt-2">Log in to your Holiday Planner account</p>
+        </div>
 
         {error && (
-          <div className="bg-red-50 text-red-600 p-3 rounded-lg border border-red-100">
+          <div className="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl">
             {error}
           </div>
         )}
@@ -110,17 +118,17 @@ const LoginPage = () => {
           type="submit"
           disabled={loading}
           className={`${
-            loading ? "opacity-70" : ""
-          } bg-gradient-to-r from-teal-400 to-green-400 cursor-pointer text-white font-semibold py-2 rounded-lg shadow hover:scale-105 transition`}
+            loading ? "opacity-70 cursor-not-allowed" : "hover:scale-105 hover:shadow-xl"
+          } bg-gradient-to-r from-teal-500 to-green-500 cursor-pointer text-white font-bold py-4 rounded-xl shadow-lg transition-all duration-300 transform`}
         >
           {loading ? "Logging in..." : "Log In"}
         </button>
 
-        <div className="text-center mt-2">
+        <div className="text-center mt-4 pt-4 border-t border-gray-100">
           <span className="text-gray-600">Don't have an account? </span>
           <Link
             to="/signup"
-            className="text-teal-600 font-semibold hover:underline"
+            className="text-teal-600 font-semibold hover:text-teal-700 transition-colors"
           >
             Sign Up
           </Link>
