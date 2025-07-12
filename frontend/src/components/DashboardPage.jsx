@@ -5,7 +5,7 @@ import LoadingState from "./shared/LoadingState";
 import { toast } from "react-toastify";
 import DeleteTripModal from "./shared/DeleteTripModal";
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:8000";
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 const DashboardPage = () => {
   const [trips, setTrips] = useState([]);
